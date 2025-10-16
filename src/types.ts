@@ -4,8 +4,8 @@ export interface GlobalState {
 }
 
 export interface Config {
+  importSource: string;
   autoImport?: boolean;
-  importSource?: string;
   identifierSignalDeclaration?: boolean;
   patternSignalDeclaration?: boolean;
   identifierSignalRead?: boolean;
