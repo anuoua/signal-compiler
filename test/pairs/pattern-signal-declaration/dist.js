@@ -18,3 +18,7 @@ const $he2 = _computed(() => $__1.value["b"]["he2"]);
 const he = $__1.value["b"]["he"];
 const $rest = _computed(() => $__1.value["a"].slice(1));
 const $aaa = _computed(() => $__1.value["a"]["0"]);
+const Pagination = $props => {
+  const $__2 = _computed(() => $props.value);
+  const $size = _computed(() => $__2.value["size"] ?? 'md');
+};

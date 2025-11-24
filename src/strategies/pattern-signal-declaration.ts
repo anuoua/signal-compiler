@@ -155,8 +155,7 @@ const buildPattern = (
               if (t.isIdentifier(property.value.left)) {
                 const expression = buildPatternToMemberExpressionWithInit({
                   OBJECT: object,
-                  PROPERTY: `"${(property.value.left as Types.Identifier).name
-                    }"`,
+                  PROPERTY: `"${(property.key as Types.Identifier).name}"`,
                   INIT: property.value.right,
                 });
 
