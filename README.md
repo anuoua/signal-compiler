@@ -1,183 +1,208 @@
-# Signal Compiler
+# 信号 Signal 编译器 [English](./README-en_US.md)
 
-A revolutionary compile-time strategy for building signal-based reactive applications.
+一种革命性的编译策略，用于构建基于 Signal 信号的响应式应用程序。
 
-Make signal development almost imperceptible, greatly increase readability, while enjoying seamless TypeScript support and an excellent developer experience.
+让信号的开发接近无感，大幅增加可读性，同时享受无缝的 TypeScript 支持和卓越的开发者体验。
 
-## ✨ Why Signal Compiler?
+## ✨ 为什么选择信号编译器？
 
-- **Zero Runtime Overhead**: Transform ordinary JavaScript into fine-grained reactive signals at build time.
-- **Intuitive API**: Use familiar `$` prefixed variables—no need to learn new primitives.
-- **Signal Propagation**: Enforce response chains through explicit passing, preventing accidental non-reactive leaks.
-- **Framework Agnostic**: Compatible with tools like Babel and Vite. Works perfectly with signal libraries like [J20](https://example.com/j20).
-- **Type Safe**: Complete TypeScript type inference out of the box.
+- **零运行时开销**：在构建时将普通 JavaScript 转换为细粒度响应式信号。
+- **直观 API**：使用熟悉的 `$` 前缀变量——无需学习新原语。
+- **信号传播**：通过显式命名标记强制传递响应链，防止意外的非响应泄漏。
+- **框架无关**：兼容 Babel、Vite 等工具。与 [j20](https://github.com/anuoua/j20) 或者 [Preact Signal](https://github.com/preactjs/signals) 等信号库完美搭配。
+- **类型安全**：开箱即用的完整 TypeScript 类型推断。
+- **无混淆**：信号与普通变量区分开，不会混淆。
 
-Say goodbye to verbose signal wrappers and embrace declarative reactivity!
+告别冗长的信号包装器，迎接声明式响应性！
 
-> An important point is that signals are distinguished from ordinary variables, so you won't get confused.
+## 🚀 快速开始
 
-## 🚀 Quick Start
-
-### Installation
+### 安装
 
 ```bash
 npm install signal-compiler
 ```
 
-### Babel Configuration
+### Babel 配置
 
-Add the plugin in `babel.config.js`:
+在 `babel.config.js` 中添加插件：
 
 ```javascript
-import { signalCompiler } from 'signal-compiler';
+import { signalCompiler } from "signal-compiler";
 
 export default {
   plugins: [
     [
       signalCompiler,
       {
-        importSource: 'j20', // Specify signal module (e.g. 'j20')
+        importSource: "@preact/signals", // 指定信号模块（例如 '@preact/signals'）
       },
     ],
   ],
 };
 ```
 
-### Vite Configuration
+### Vite 配置
 
-Integrate via Rollup plugin in `vite.config.js`:
+在 `vite.config.js` 中通过 Rollup 插件集成：
 
 ```javascript
-import { defineConfig } from 'vite';
-import { signalCompilerRollup } from 'signal-compiler/rollup';
+import { defineConfig } from "vite";
+import { signalCompilerRollup } from "signal-compiler/rollup";
 
 export default defineConfig({
   plugins: [
     signalCompilerRollup({
-      include: 'src/**/*.{js,jsx,ts,tsx}', // Target files/directories
+      include: "src/**/*.{js,jsx,ts,tsx}", // 目标文件/目录
       config: {
-        importSource: 'j20',
+        importSource: "@preact/signals",
       },
     }),
   ],
 });
 ```
 
-Run your build (`npm run build` or `vite dev`) and your `$` prefixed code will magically become reactive!
+运行您的构建（ `npm run build` 或 `vite dev` ），您的 `$` 前缀代码将神奇地变为响应式！
 
-## 📖 Core Compilation Strategies
+## 📖 核心编译策略
 
-This strategy uses **name-based label propagation** to make signals feel native. Developers write intuitive code; the compiler injects `signal()` and `computed()` from your specified module (e.g. J20).
+编译策略基于**命名标记**，使信号的使用像原生代码一样，让开发者编写更直观的代码；
 
-### Core Concepts
+编译器会从您指定的模块（例如 @preact/signals）自动注入 `signal()` 和 `computed()` 。
 
-1. **Signal Variables**: Variables prefixed with `$` (not `$use`) are actually signal objects, imperceptible to users, and used like ordinary variables.
-2. **Signal Reading**: When all signal variables are read, they are automatically unpacked without manually adding `.value`, imperceptible to users, and used like ordinary variables.
-4. **Signal Assignment**: When signal variables are assigned, `.value` is automatically added, imperceptible to users, and can be assigned like ordinary variables.
-3. **Signal Propagation**: Signals must be passed through `$` prefixed variables (usually derived signals, i.e. `computed`) to maintain reactivity, otherwise the variable value is the original signal object, and `.value` needs to be manually added to get the value.
+### 核心概念
 
-### Compilation Rules
+1. **信号变量**：以 `$`（非`$use`） 前缀的变量实际上为信号对象，用户无感，和普通变量一样使用。
+2. **信号读取**：所有信号变量读取的时候都会自动解包，无需手动添加 `.value`，用户无感，和普通变量一样使用。
+3. **信号赋值**：信号变量赋值时，会自动添加 `.value`，用户无感，和普通变量一样赋值即可。
+4. **信号传播**：信号必须通过 `$` 前缀变量（通常为派生信号，既 `computed` ）传递才能保持响应性，否则变量值为原始信号对象，需要手动添加 `.value` 取值，在 Typescript 下值的类型和实际值不符。
 
-1. **Signal Creation**  
+### 编译规则
 
-   Use `let` with `$` prefix:
+1、**信号创建**
 
-   ```javascript
-   let $name = 1;
-   // Compiled to:
-   let $name = signal(1);
-   ```
+使用 `let` 搭配 `$` 前缀：
 
-2. **Signal Reading**  
+```javascript
+let $name = 1;
+// 编译为：
+import { signal } from "@preact/signals";
+let $name = signal(1);
+```
 
-   Automatically append `.value`:
+2、**信号读取**
 
-   ```javascript
-   let $name = 1;
-   console.log($name);
-   // Compiled to:
-   let $name = signal(1);
-   console.log($name.value);
-   ```
+自动追加 `.value` ：
 
-3. **Signal Assignment**  
+```javascript
+let $name = 1;
+console.log($name);
+// 编译为：
+let $name = signal(1);
+console.log($name.value);
+```
 
-   Redirect to `.value`:
+3、**信号赋值**
 
-   ```javascript
-   let $name = 1;
-   $name = 2;
-   console.log($name);
-   // Compiled to:
-   let $name = signal(1);
-   $name.value = 2;
-   console.log($name.value);
-   ```
+重定向到 `.value` ：
 
-4. **Signal Derivation**
+```javascript
+let $name = 1;
+$name = 2;
+console.log($name);
+// 编译为：
+let $name = signal(1);
+$name.value = 2;
+console.log($name.value);
+```
 
-   Use `const` with `$` prefix:
+4、**信号派生**
 
-   ```javascript
-   let $name = 1;
-   const $displayName = $name + 'a';
-   // Compiled to:
-   let $name = signal(1);
-   const $displayName = computed(() => $name.value + 'a');
-   ```
+使用 `const` 搭配 `$` 前缀：
 
-5. **Custom Hook**  
-   Function names with `$use` prefix to achieve reactivity:
+```javascript
+let $name = 1;
+const $displayName = $name + "a";
+// 编译为：
+import { signal, computed } from "@preact/signals";
+let $name = signal(1);
+const $displayName = computed(() => $name.value + "a");
+```
 
-   ```javascript
-   function $useName($age) {
-     let $name = 1;
-     return $name + $age;
-   }
-   let $age = 1;
-   const $name = $useName($age);
-   console.log($name);
+5、**自定义 Hook**
 
-   // Compiled to:
-   function $useName($age) {
-     let $name = signal(1);
-     // Return value wrapped in computed
-     return computed(() => $name.value + $age.value);
-   }
-   let $age = signal(1);
-   const $name = $useName(computed(() => $age.value)); // Parameters wrapped in computed
-   console.log($name.value);
-   ```
+函数名以 `$use` 前缀以实现响应性：
 
-6. **Destructuring Assignment**  
-   Propagate signals through aliases:
+```javascript
+function $useName($age) {
+  let $name = 1;
+  return $name + $age;
+}
+let $age = 1;
+const $name = $useName($age);
+console.log($name);
 
-   ```javascript
-   // Input parameters are signals, name variables need to use $ prefixed aliases to pass to retain reactivity (core propagation concept).
-   function $useName({ name: $name }) {
-     return {
-       displayName: $name + 'a',
-     };
-   }
+// 编译为：
+function $useName($age) {
+  let $name = signal(1);
+  // 1. 返回值包裹在 computed 中
+  return computed(() => $name.value + $age.value);
+}
+let $age = signal(1);
+// 2. 自定义 Hook 函数在使用时参数包裹在 computed 中
+const $name = $useName(computed(() => $age.value));
+console.log($name.value);
+```
 
-   // Pass through alias $displayName to retain reactivity (core propagation concept).
-   const { displayName: $displayName } = $useName({ name: 1 });
-   console.log($displayName);
+6、**解构赋值**
 
-   // Compiled to:
-   function $useName($__0) {
-     // $__0 is a temporary variable storing computed parameters.
-     const $name = computed(() => $__0.value.name);
-     return computed(() => ({
-       displayName: $name.value + 'a',
-     }));
-   }
+通过设置 `$` 前缀的变量别名激活编译策略，以保持响应性：
 
-   const $__0 = $useName(computed(() => ({ name: 1 })));
-   const $displayName = computed(() => $__0.value.displayName);
-   console.log($displayName.value);
-   ```
+```javascript
+// 输入参数为信号，name 变量需要使用 $ 前缀的别名传递，激活编译策略，以保留响应性。
+function $useName({ name: $name }) {
+  return {
+    displayName: $name + "a",
+  };
+}
 
-## 📄 License
+// 通过别名 $displayName 激活编译策略， 以保留响应性。
+const { displayName: $displayName } = $useName({
+  name: 1,
+});
+console.log($displayName);
+
+// 编译为：
+function $useName($__0) {
+  // $__0 是临时变量，存储入参参数。
+  const $name = computed(() => $__0.value.name);
+  return computed(() => ({
+    displayName: $name.value + "a",
+  }));
+}
+
+const $__0 = $useName(
+  computed(() => ({
+    name: 1,
+  }))
+);
+const $displayName = computed(() => $__0.value.displayName);
+console.log($displayName.value);
+```
+
+## 信号传播
+
+根据上述的编译策略，应该可以了解到，只有在 `$` 前缀的变量中，才会被编译成信号。
+所以，响应链的传递，是利用 `$` 前缀的变量，通过显式标记的方式实现的。
+
+信号的传递路径：
+
+```
+声明信号 -> 派生信号 -> hook(入参信号) -> hook(返回值信号) -> 派生/解构信号
+```
+
+这里每一步都会进行信号编译，响应才不会中断，这就是信号的传播机制。
+
+## 📄 许可证
 
 MIT
