@@ -7,7 +7,7 @@ import { composeVisitors } from "./utils/compose-visitors";
 import type { PluginObj } from "@babel/core";
 import type { Config, GlobalState } from "./types";
 import { patternSignalDeclaration } from "./strategies/pattern-signal-declaration";
-import { functionAutoSignal } from "./strategies/function-auto-signal";
+import { customHookSignal } from "./strategies/custom-hook-signal";
 import { identifierSignalAssign } from "./strategies/identifier-signal-assign";
 import { autoImport } from "./strategies/add-source";
 
@@ -17,7 +17,7 @@ const defaultConfig: Config = {
   identifierSignalDeclaration: true,
   patternSignalDeclaration: true,
   identifierSignalRead: true,
-  functionAutoSignal: true,
+  customHookSignal: true,
   identifierSignalAssign: true,
 };
 
@@ -43,7 +43,7 @@ export const signalCompiler = (
       ? patternSignalDeclaration(babel, config, globalState)
       : null,
     config.identifierSignalRead ? identifierSignalRead(babel) : null,
-    config.functionAutoSignal ? functionAutoSignal(babel, config) : null,
+    config.customHookSignal ? customHookSignal(babel, config) : null,
     config.identifierSignalAssign ? identifierSignalAssign(babel) : null,
     config.autoImport ? autoImport(babel, config) : null,
   ].filter((i) => i) as babelCore.Visitor[];

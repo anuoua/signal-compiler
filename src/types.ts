@@ -9,6 +9,6 @@ export interface Config {
   identifierSignalDeclaration?: boolean;
   patternSignalDeclaration?: boolean;
   identifierSignalRead?: boolean;
-  functionAutoSignal?: boolean;
+  customHookSignal?: boolean;
   identifierSignalAssign?: boolean;
 }

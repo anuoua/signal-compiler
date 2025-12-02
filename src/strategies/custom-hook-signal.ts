@@ -2,7 +2,7 @@ import * as babelCore from "@babel/core";
 import { isCustomHook } from "../utils/is-custom-hook";
 import type { Config } from "../types";
 
-export const functionAutoSignal = (
+export const customHookSignal = (
   babel: typeof babelCore,
   config: Config
 ): babelCore.Visitor => {
