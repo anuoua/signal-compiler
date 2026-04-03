@@ -1,8 +1,8 @@
 import { signal as _signal, computed as _computed } from "source";
 let $__0 = _computed(() => ({}));
-let $p = _signal(($__0.value["a"] ?? 3)["p"]);
-let $cc = _signal((($__0.value["a"] ?? 3)["$ddd"] ?? 8)["c"]["1"]);
-let $bb = _signal((($__0.value["a"] ?? 3)["$ddd"] ?? 8)["b"]["0"]);
+let $p = _signal(($__0.value.value.value["a"] ?? 3)["p"]);
+let $cc = _signal((($__0.value.value.value["a"] ?? 3)["$ddd"] ?? 8)["c"]["1"]);
+let $bb = _signal((($__0.value.value.value["a"] ?? 3)["$ddd"] ?? 8)["b"]["0"]);
 const $__1 = _computed(() => ({}));
 const $rest2 = _computed(() => (() => {
   const {
@@ -10,14 +10,14 @@ const $rest2 = _computed(() => (() => {
     he2,
     $ki: __2,
     ...__3
-  } = $__1.value["b"];
+  } = $__1.value.value.value.value["b"];
   return __3;
 })());
-const $ki = _computed(() => $__1.value["b"]["$ki"]);
-const $he2 = _computed(() => $__1.value["b"]["he2"]);
-const he = $__1.value["b"]["he"];
-const $rest = _computed(() => $__1.value["a"].slice(1));
-const $aaa = _computed(() => $__1.value["a"]["0"]);
+const $ki = _computed(() => $__1.value.value.value.value["b"]["$ki"]);
+const $he2 = _computed(() => $__1.value.value.value.value["b"]["he2"]);
+const he = $__1.value.value.value.value["b"]["he"];
+const $rest = _computed(() => $__1.value.value["a"].slice(1));
+const $aaa = _computed(() => $__1.value.value["a"]["0"]);
 const Pagination = $props => {
   const $__2 = _computed(() => $props.value);
   const $size = _computed(() => $__2.value["size"] ?? 'md');

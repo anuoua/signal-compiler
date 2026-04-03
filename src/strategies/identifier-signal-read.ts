@@ -30,12 +30,17 @@ export const identifierSignalRead = (
         t.isIdentifier(path.parentPath.node.property) &&
         path.parentPath.node.property.name === "value";
 
+      const isInAssignLeft =
+        path.parentPath.isMemberExpression() &&
+        path.parentPath.parentPath.isAssignmentExpression() &&
+        path.parentPath.parentPath.node.left === path.parentPath.node;
+
       if (
         isSignal(path.node.name) &&
         path.isReferenced() &&
         !inDollarDeclar &&
         !isObjectPatternProperty &&
-        !hasGetProperty
+        !isInAssignLeft
       ) {
         path.replaceWith(
           buildSignalGet({

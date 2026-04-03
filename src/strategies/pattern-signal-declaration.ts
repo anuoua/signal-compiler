@@ -197,7 +197,7 @@ const buildPattern = (
           }
         } else if (t.isRestElement(property)) {
           if (t.isIdentifier(property.argument)) {
-            const expression = object;
+            let expression = object;
 
             const insertNode = template.statement(`
               ${kind} %%VAR_NAME%% = (() => {

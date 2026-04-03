@@ -42,9 +42,9 @@ export const signalCompiler = (
     config.patternSignalDeclaration
       ? patternSignalDeclaration(babel, config, globalState)
       : null,
+    config.identifierSignalAssign ? identifierSignalAssign(babel) : null,
     config.identifierSignalRead ? identifierSignalRead(babel) : null,
     config.customHookSignal ? customHookSignal(babel, config) : null,
-    config.identifierSignalAssign ? identifierSignalAssign(babel) : null,
     config.autoImport ? autoImport(babel, config) : null,
   ].filter((i) => i) as babelCore.Visitor[];
 
