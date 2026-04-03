@@ -8,20 +8,21 @@ on:
     tags:
       - "*"
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  build-and-publish:
+  build-publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-          registry-url: "https://registry.npmjs.org"
-      - run: |
-          npm install
+          node-version: 24
+
+      - name: Publish
+        run: |
+          npm ci
           npm run build
           npm publish --access public
-        env:
-          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

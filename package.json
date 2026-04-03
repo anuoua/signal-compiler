@@ -12,6 +12,9 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "url": "git@github.com:anuoua/signal-compiler.git"
+  },
   "exports": {
     "./rollup": {
       "default": "./dist/rollup.js",
