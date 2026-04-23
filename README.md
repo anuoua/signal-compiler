@@ -129,9 +129,11 @@ let $name = signal(1);
 const $displayName = computed(() => $name.value + "a");
 ```
 
+注：派生信号如果紧接着自定义 Hook，会跳过编译，因为自定义 Hook 返回的结果已经是信号。
+
 5、**自定义 Hook**
 
-函数名以 `$use` 前缀以实现响应性：
+函数名以 `$use` 前缀会触发编译，解构入参和出参均会被处理：
 
 ```javascript
 function $useName($age) {
@@ -149,12 +151,25 @@ function $useName($age) {
   return computed(() => $name.value + $age.value);
 }
 let $age = signal(1);
-// 2. 自定义 Hook 函数在使用时参数包裹在 computed 中
+// 2. 自定义 Hook 函数在使用时参数包裹在 computed 中，const $name 派生信号在遇到自定义 Hook 时会跳过编译，所以 $useName 不会被包裹在 computed 中。
 const $name = $useName(computed(() => $age.value));
 console.log($name.value);
 ```
+6、组件函数
 
-6、**解构赋值**
+函数名首字母为大写（以匹配类 React 框架的组件函数），而且入参包含以 `$` 为前缀的变量，会触发编译，解构入参会被处理。
+
+```js
+const App = ($props) => {} // 入参不解构，无需处理，框架在传入前自行处理
+
+const App = ({ msg: $msg = "hello" }) => {}
+// 编译为
+const App = (__$0) => {
+  const $msg = computed(() => __$0.value.msg ?? "hello");
+}
+```
+
+7、**解构赋值**
 
 通过设置 `$` 前缀的变量别名激活编译策略，以保持响应性：
 
