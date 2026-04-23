@@ -6,3 +6,7 @@ const Pagination = ($props) => {
     size: $size = 'md'
   } = $props;
 }
+
+const Input = ({ size: $size = 'md', ...rest }) => {
+
+}
