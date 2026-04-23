@@ -8,10 +8,10 @@ const $rest2 = _computed(() => (() => {
   const {
     he,
     he2,
-    $ki: __2,
-    ...__3
+    $ki: __$2,
+    ...__$3
   } = $__1.value.value.value.value["b"];
-  return __3;
+  return __$3;
 })());
 const $ki = _computed(() => $__1.value.value.value.value["b"]["$ki"]);
 const $he2 = _computed(() => $__1.value.value.value.value["b"]["he2"]);

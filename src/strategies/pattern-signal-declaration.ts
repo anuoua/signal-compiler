@@ -203,10 +203,10 @@ const buildPattern = (
               ${kind} %%VAR_NAME%% = (() => {
                 const { ${omitKeys
                 .map((key, index) =>
-                  isSignal(key) ? `${key}: __${index}` : key
+                  isSignal(key) ? `${key}: __$${index}` : key
                 )
-                .join(",")}, ...__${omitKeys.length} } = %%INIT%%;
-                return __${omitKeys.length};
+                .join(",")}, ...__$${omitKeys.length} } = %%INIT%%;
+                return __$${omitKeys.length};
               })()
             `)({
                   VAR_NAME: property.argument.name,

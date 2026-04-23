@@ -4,9 +4,9 @@ const $useClip = $__0 => {
     const {
       x,
       y,
-      ...__2
+      ...__$2
     } = $__0.value;
-    return __2;
+    return __$2;
   })());
   const $y = _computed(() => $__0.value["y"]);
   const $x = _computed(() => $__0.value["x"]);
@@ -20,9 +20,9 @@ function $useClip2($__1) {
     const {
       x,
       y,
-      ...__2
+      ...__$2
     } = $__1.value;
-    return __2;
+    return __$2;
   })());
   const $y = _computed(() => $__1.value["y"]);
   const $x = _computed(() => $__1.value["x"]);
