@@ -43,7 +43,7 @@ export const patternSignalDeclaration = (
         if (!(t.isObjectPattern(param) || t.isArrayPattern(param))) return;
         if (!hasSignalInPattern(param)) return;
 
-        const varName = `$__${globalState.createVarCount++}`;
+        const varName = `__$${globalState.createVarCount++}`;
 
         path.node.params[index] = t.identifier(varName);
 
@@ -66,7 +66,7 @@ export const patternSignalDeclaration = (
         if (!(t.isObjectPattern(param) || t.isArrayPattern(param))) return;
         if (!hasSignalInPattern(param)) return;
 
-        const varName = `$__${globalState.createVarCount++}`;
+        const varName = `__$${globalState.createVarCount++}`;
 
         path.node.params[index] = t.identifier(varName);
 
@@ -88,7 +88,7 @@ export const patternSignalDeclaration = (
             if (hasSignalInPattern(declearation.id)) {
               const declearationId = declearation.id;
 
-              const varName = `$__${globalState.createVarCount++}`;
+              const varName = `__$${globalState.createVarCount++}`;
 
               declearation.id = t.identifier(varName);
 
@@ -106,9 +106,15 @@ export const patternSignalDeclaration = (
                 });
               }
 
+              // For VariableDeclaration, we need to access .value since it's wrapped in _computed()
+              const objectExpression = t.memberExpression(
+                t.identifier(varName),
+                t.identifier("value")
+              );
+
               buildPattern(
                 declearationId,
-                varName,
+                objectExpression,
                 node.kind,
                 (exp: Types.Expression | Types.Statement) => {
                   path.insertAfter(exp);
