@@ -4,12 +4,12 @@ const $useClip = __$0 => {
     const {
       x,
       y,
-      ...__$2
+      ...___2
     } = __$0.value;
-    return __$2;
+    return ___2;
   })());
-  const $y = _computed(() => __$0["y"]);
-  const $x = _computed(() => __$0["x"]);
+  const $y = _computed(() => __$0.value["y"]);
+  const $x = _computed(() => __$0.value["x"]);
   return _computed(() => ({
     $x: $x.value
   }));
@@ -20,9 +20,9 @@ function $useClip2(__$1) {
     const {
       x,
       y,
-      ...__$2
+      ...___2
     } = __$1.value;
-    return __$2;
+    return ___2;
   })());
   const $y = _computed(() => __$1.value["y"]);
   const $x = _computed(() => __$1.value["x"]);
