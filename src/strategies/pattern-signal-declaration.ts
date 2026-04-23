@@ -4,6 +4,7 @@ import { hasSignalInPattern } from "../utils/has-signal-in-pattern";
 import { isCustomHook } from "../utils/is-custom-hook";
 import type { types as Types } from "@babel/core";
 import type { Config, GlobalState } from "../types";
+import { isComponentFunction } from "../utils/is-component-function";
 
 const { types: t, template } = babelCore;
 
@@ -22,7 +23,7 @@ const buildPatternToRestExpression = template.expression(`
 export const patternSignalDeclaration = (
   babel: typeof babelCore,
   config: Config,
-  globalState: GlobalState
+  globalState: GlobalState,
 ): babelCore.Visitor => {
   const buildComputedAssignment = template.expression(`
     %%COMPUTED%%(() => %%EXPR%%)
@@ -34,7 +35,8 @@ export const patternSignalDeclaration = (
       if (
         !(
           t.isIdentifier(path.parentPath.node.id) &&
-          isCustomHook(path.parentPath.node.id.name)
+          (isCustomHook(path.parentPath.node.id.name) ||
+            isComponentFunction(path.parentPath.node.id.name))
         )
       ) {
         return;
@@ -47,16 +49,26 @@ export const patternSignalDeclaration = (
 
         path.node.params[index] = t.identifier(varName);
 
-        buildPattern(param, varName, "const", (exp: Types.Statement) => {
-          if (t.isExpression(path.node.body)) {
-            path.node.body = t.blockStatement([
-              exp,
-              t.expressionStatement(path.node.body),
-            ]);
-          } else if (t.isBlockStatement(path.node.body)) {
-            path.node.body.body.unshift(exp);
-          }
-        });
+        const objectExpression = t.memberExpression(
+          t.identifier(varName),
+          t.identifier("value"),
+        );
+
+        buildPattern(
+          param,
+          objectExpression,
+          "const",
+          (exp: Types.Statement) => {
+            if (t.isExpression(path.node.body)) {
+              path.node.body = t.blockStatement([
+                exp,
+                t.expressionStatement(path.node.body),
+              ]);
+            } else if (t.isBlockStatement(path.node.body)) {
+              path.node.body.body.unshift(exp);
+            }
+          },
+        );
       });
     },
 
@@ -70,9 +82,19 @@ export const patternSignalDeclaration = (
 
         path.node.params[index] = t.identifier(varName);
 
-        buildPattern(param, varName, "const", (exp: Types.Statement) => {
-          path.node.body.body.unshift(exp);
-        });
+        const objectExpression = t.memberExpression(
+          t.identifier(varName),
+          t.identifier("value"),
+        );
+
+        buildPattern(
+          param,
+          objectExpression,
+          "const",
+          (exp: Types.Statement) => {
+            path.node.body.body.unshift(exp);
+          },
+        );
       });
     },
 
@@ -94,7 +116,7 @@ export const patternSignalDeclaration = (
 
               if (
                 declearation.init &&
-                declearation.init.type === 'CallExpression' &&
+                declearation.init.type === "CallExpression" &&
                 declearation.init.callee.type === "Identifier" &&
                 isCustomHook(declearation.init.callee.name)
               ) {
@@ -109,7 +131,7 @@ export const patternSignalDeclaration = (
               // For VariableDeclaration, we need to access .value since it's wrapped in _computed()
               const objectExpression = t.memberExpression(
                 t.identifier(varName),
-                t.identifier("value")
+                t.identifier("value"),
               );
 
               buildPattern(
@@ -118,7 +140,7 @@ export const patternSignalDeclaration = (
                 node.kind,
                 (exp: Types.Expression | Types.Statement) => {
                   path.insertAfter(exp);
-                }
+                },
               );
             }
           }
@@ -132,7 +154,7 @@ const buildPattern = (
   pattern: Types.ObjectPattern | Types.ArrayPattern,
   object: string | Types.Expression,
   kind: "let" | "const",
-  insertHandler: (exp: Types.Statement) => void
+  insertHandler: (exp: Types.Statement) => void,
 ) => {
   switch (pattern.type) {
     case "ObjectPattern": {
@@ -186,7 +208,7 @@ const buildPattern = (
                   property.value.left,
                   expression,
                   kind,
-                  insertHandler
+                  insertHandler,
                 );
               }
               break;
@@ -208,16 +230,16 @@ const buildPattern = (
             const insertNode = template.statement(`
               ${kind} %%VAR_NAME%% = (() => {
                 const { ${omitKeys
-                .map((key, index) =>
-                  isSignal(key) ? `${key}: __$${index}` : key
-                )
-                .join(",")}, ...__$${omitKeys.length} } = %%INIT%%;
-                return __$${omitKeys.length};
+                  .map((key, index) =>
+                    isSignal(key) ? `${key}: ___${index}` : key,
+                  )
+                  .join(",")}, ...___${omitKeys.length} } = %%INIT%%;
+                return ___${omitKeys.length};
               })()
             `)({
-                  VAR_NAME: property.argument.name,
-                  INIT: expression,
-                });
+              VAR_NAME: property.argument.name,
+              INIT: expression,
+            });
 
             insertHandler(insertNode);
           }
