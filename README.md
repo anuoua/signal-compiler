@@ -4,18 +4,16 @@
 
 让信号的开发接近无感，大幅增加可读性，同时享受无缝的 TypeScript 支持和卓越的开发者体验。
 
-## ✨ 为什么选择信号编译器？
+## 特点
 
-- **零运行时开销**：在构建时将普通 JavaScript 转换为细粒度响应式信号。
 - **直观 API**：使用熟悉的 `$` 前缀变量——无需学习新原语。
-- **信号传播**：通过显式命名标记强制传递响应链，防止意外的非响应泄漏。
+- **信号传递**：通过显式命名标记强制传递响应链，显式可控。
 - **框架无关**：兼容 Babel、Vite 等工具。与 [j20](https://github.com/anuoua/j20) 或者 [Preact Signal](https://github.com/preactjs/signals) 等信号库完美搭配。
-- **类型安全**：开箱即用的完整 TypeScript 类型推断。
 - **无混淆**：信号与普通变量区分开，不会混淆。
 
 告别冗长的信号包装器，迎接声明式响应性！
 
-## 🚀 快速开始
+## 快速开始
 
 ### 安装
 
@@ -64,20 +62,13 @@ export default defineConfig({
 
 运行您的构建（ `npm run build` 或 `vite dev` ），您的 `$` 前缀代码将神奇地变为响应式！
 
-## 📖 核心编译策略
+## 核心编译策略
 
-编译策略基于**命名标记**，使信号的使用像原生代码一样，让开发者编写更直观的代码；
+编译策略基于**命名标记**，使信号的使用极其无感，让开发者编写更直观的代码；
 
 编译器会从您指定的模块（例如 @preact/signals）自动注入 `signal()` 和 `computed()` 。
 
-### 核心概念
-
-1. **信号变量**：以 `$`（非`$use`） 前缀的变量实际上为信号对象，用户无感，和普通变量一样使用。
-2. **信号读取**：所有信号变量读取的时候都会自动解包，无需手动添加 `.value`，用户无感，和普通变量一样使用。
-3. **信号赋值**：信号变量赋值时，会自动添加 `.value`，用户无感，和普通变量一样赋值即可。
-4. **信号传播**：信号必须通过 `$` 前缀变量（通常为派生信号，既 `computed` ）传递才能保持响应性，否则变量值为原始信号对象，需要手动添加 `.value` 取值，在 Typescript 下值的类型和实际值不符。
-
-### 编译规则
+### 编译策略
 
 1、**信号创建**
 
@@ -151,22 +142,25 @@ function $useName($age) {
   return computed(() => $name.value + $age.value);
 }
 let $age = signal(1);
-// 2. 自定义 Hook 函数在使用时参数包裹在 computed 中，const $name 派生信号在遇到自定义 Hook 时会跳过编译，所以 $useName 不会被包裹在 computed 中。
+// 2. 自定义 Hook 函数，参数会被包裹在 computed 中
+// const $name 派生信号在遇到自定义 Hook 时会跳过编译
+// 所以 $useName 不会被包裹在 computed 中。
 const $name = $useName(computed(() => $age.value));
 console.log($name.value);
 ```
-6、组件函数
+
+6、**组件函数**
 
 函数名首字母为大写（以匹配类 React 框架的组件函数），而且入参包含以 `$` 为前缀的变量，会触发编译，解构入参会被处理。
 
-```js
-const App = ($props) => {} // 入参不解构，无需处理，框架在传入前自行处理
+```javascript
+const App = ($props) => {}; // 入参不解构，无需处理，框架在传入前自行处理
 
-const App = ({ msg: $msg = "hello" }) => {}
+const App = ({ msg: $msg = "hello" }) => {};
 // 编译为
 const App = (__$0) => {
   const $msg = computed(() => __$0.value.msg ?? "hello");
-}
+};
 ```
 
 7、**解构赋值**
@@ -205,19 +199,32 @@ const $displayName = computed(() => $__0.value.displayName);
 console.log($displayName.value);
 ```
 
-## 信号传播
+## 信号传递
 
-根据上述的编译策略，应该可以了解到，只有在 `$` 前缀的变量中，才会被编译成信号。
-所以，响应链的传递，是利用 `$` 前缀的变量，通过显式标记的方式实现的。
+信号只能传递给下一个信号，即总是保持 `$` 前缀，包括入参。
 
-信号的传递路径：
+一旦传递过程中传递给了非信号变量，那么你所期望的响应链就会中断，最终造成你的界面不再更新。
+
+```javascript
+const $useMsg = ({ msg: $msg = "hello" }) => {
+  return {
+    msg: $msg,
+  }
+};
+
+let $hello2 = { msg: "hello2" };
+
+const { msg: $msg } = $useMsg($hello2);
+```
+
+上面是一个常规的用法，信号传递成功：
 
 ```
-声明信号 -> 派生信号 -> hook(入参信号) -> hook(返回值信号) -> 派生/解构信号
+$hello2 -> $useMsg($hello2) -> { msg: $msg }
 ```
 
-这里每一步都会进行信号编译，响应才不会中断，这就是信号的传播机制。
+每一步信号都传递给了下一个信号，始终保持 `$` 前缀。
 
-## 📄 许可证
+## 许可证
 
 MIT

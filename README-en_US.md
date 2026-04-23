@@ -2,20 +2,18 @@
 
 A revolutionary compilation strategy for building Signal-based reactive applications.
 
-Make signal development approachable and seamless, dramatically increasing readability while enjoying effortless TypeScript support and an exceptional developer experience.
+Make signal development nearly transparent, dramatically improving readability while enjoying seamless TypeScript support and an exceptional developer experience.
 
-## ✨ Why Choose Signal Compiler?
+## Features
 
-- **Zero runtime overhead**: Convert plain JavaScript to fine-grained reactive signals at build time.
-- **Intuitive API**: Use familiar `$` prefixed variables—no need to learn new primitives.
-- **Signal Propagation**: Force passing the reactive chain through explicit naming tags, preventing unintentional non-reactive leaks.
-- **Framework Agnostic**: Compatible with tools like Babel and Vite. Works seamlessly with signal libraries like [j20](https://github.com/anuoua/j20) or [Preact Signal](https://github.com/preactjs/signals).
-- **Type Safety**: Full TypeScript type inference out of the box.
-- **No Confusion**: Signals and regular variables are clearly distinguished to avoid confusion.
+- **Intuitive API**: Use familiar `$` prefixed variables — no need to learn new primitives.
+- **Signal Propagation**: Enforce reactive chain propagation through explicit naming tags — explicit and controllable.
+- **Framework Agnostic**: Compatible with tools like Babel and Vite. Works seamlessly with signal libraries such as [j20](https://github.com/anuoua/j20) or [Preact Signal](https://github.com/preactjs/signals).
+- **No Confusion**: Signals and regular variables are clearly distinguished, avoiding confusion.
 
 Say goodbye to verbose signal wrappers and embrace declarative reactivity!
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -64,24 +62,17 @@ export default defineConfig({
 
 Run your build (`npm run build` or `vite dev`), and your `$` prefixed code will magically become reactive!
 
-## 📖 Core Compilation Strategy
+## Core Compilation Strategy
 
-The compilation strategy is based on **naming tags**, making the use of signals feel native-like, allowing developers to write more intuitive code;
+The compilation strategy is based on **naming tags**, making signal usage nearly transparent and allowing developers to write more intuitive code.
 
-The compiler will automatically inject `signal()` and `computed()` from the module you specify (e.g., @preact/signals).
-
-### Core Concepts
-
-1. **Signal Variables**: Variables prefixed with `$` (excluding `$use`) are actually signal objects. Users can use them seamlessly, just like regular variables.
-2. **Signal Reading**: All signal variable reads are automatically unwrapped—no need to manually add `.value`. Users can use them seamlessly, just like regular variables.
-3. **Signal Assignment**: When assigning values to signal variables, `.value` is automatically added. Users can assign values seamlessly, just like regular variables.
-4. **Signal Propagation**: Signals must be passed through `$` prefixed variables (usually derived signals, i.e., `computed`) to maintain reactivity. Otherwise, the variable value will be the original signal object, requiring manual addition of `.value` for value retrieval. In TypeScript, the value type will not match the actual value.
+The compiler automatically injects `signal()` and `computed()` from the module you specify (e.g., @preact/signals).
 
 ### Compilation Rules
 
 1. **Signal Creation**
 
-Use `let` with `$` prefix:
+Use `let` with the `$` prefix:
 
 ```javascript
 let $name = 1;
@@ -118,7 +109,7 @@ console.log($name.value);
 
 4. **Signal Derivation**
 
-Use `const` with `$` prefix:
+Use `const` with the `$` prefix:
 
 ```javascript
 let $name = 1;
@@ -129,9 +120,11 @@ let $name = signal(1);
 const $displayName = computed(() => $name.value + "a");
 ```
 
+Note: If a derived signal is followed by a custom Hook, compilation is skipped because the custom Hook already returns a signal.
+
 5. **Custom Hook**
 
-Use `$use` prefixed function names for reactivity:
+Function names prefixed with `$use` trigger compilation. Destructured input parameters and return values are both processed:
 
 ```javascript
 function $useName($age) {
@@ -150,16 +143,33 @@ function $useName($age) {
 }
 let $age = signal(1);
 // 2. Custom Hook function parameters are wrapped in computed when used
+// const $name derived signal skips compilation when encountering a custom Hook
+// so $useName is not wrapped in computed.
 const $name = $useName(computed(() => $age.value));
 console.log($name.value);
 ```
 
-6. **Destructuring Assignment**
+6. **Component Functions**
 
-Activate the compilation strategy by assigning a variable alias with the `$` prefix, to maintain reactivity:
+Function names starting with an uppercase letter (to match React-like framework component conventions) whose parameters contain `$` prefixed variables will trigger compilation. Destructured parameters will be processed.
 
 ```javascript
-// Input parameter is a signal; the 'name' variable needs to use the `$` prefixed alias to activate the compilation strategy to preserve reactivity.
+const App = ($props) => {}; // No destructuring of input params, no processing needed; the framework handles it before passing
+
+const App = ({ msg: $msg = "hello" }) => {};
+// Compiles to:
+const App = (__$0) => {
+  const $msg = computed(() => __$0.value.msg ?? "hello");
+};
+```
+
+7. **Destructuring Assignment**
+
+Activate the compilation strategy by setting a `$` prefixed variable alias to maintain reactivity:
+
+```javascript
+// Input parameter is a signal; the 'name' variable needs to be passed with a $ prefixed alias
+// to activate the compilation strategy and preserve reactivity.
 function $useName({ name: $name }) {
   return {
     displayName: $name + "a",
@@ -192,17 +202,30 @@ console.log($displayName.value);
 
 ## Signal Propagation
 
-Based on the above compilation strategy, you should understand that only variables with the `$` prefix will be compiled into signals.
-Therefore, the transmission of the reactive chain is achieved by explicitly marking through variables with the `$` prefix.
+Signals can only be propagated to the next signal, i.e., always keeping the `$` prefix, including parameters.
 
-Signal transmission path:
+Once a signal is passed to a non-signal variable during propagation, the reactive chain you expect will be broken, ultimately causing your UI to stop updating.
+
+```javascript
+const $useMsg = ({ msg: $msg = "hello" }) => {
+  return {
+    msg: $msg,
+  }
+};
+
+let $hello2 = { msg: "hello2" };
+
+const { msg: $msg } = $useMsg($hello2);
+```
+
+The above is a typical usage where signal propagation succeeds:
 
 ```
-Signal Declaration -> Derived Signal -> Hook (Input Parameter Signal) -> Hook (Return Value Signal) -> Derived/Destructured Signal
+$hello2 -> $useMsg($hello2) -> { msg: $msg }
 ```
 
-Each step will undergo signal compilation, ensuring reactivity is not interrupted. This is the signal propagation mechanism.
+At each step, the signal is propagated to the next signal, always maintaining the `$` prefix.
 
-## 📄 License
+## License
 
 MIT
