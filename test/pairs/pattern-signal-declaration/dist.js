@@ -8,10 +8,10 @@ const $rest2 = _computed(() => (() => {
   const {
     he,
     he2,
-    $ki: __$2,
-    ...__$3
+    $ki: ___2,
+    ...___3
   } = __$1.value["b"];
-  return __$3;
+  return ___3;
 })());
 const $ki = _computed(() => __$1.value["b"]["$ki"]);
 const $he2 = _computed(() => __$1.value["b"]["he2"]);
@@ -21,4 +21,14 @@ const $aaa = _computed(() => __$1.value["a"]["0"]);
 const Pagination = $props => {
   const __$2 = _computed(() => $props.value);
   const $size = _computed(() => __$2.value["size"] ?? 'md');
+};
+const Input = __$3 => {
+  const rest = (() => {
+    const {
+      size,
+      ...___1
+    } = __$3.value;
+    return ___1;
+  })();
+  const $size = _computed(() => __$3.value["size"] ?? 'md');
 };
