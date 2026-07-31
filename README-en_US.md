@@ -1,130 +1,161 @@
-# Signal Compiler [中文](./README.md)
+# Signal Compiler
 
-A revolutionary compilation strategy for building Signal-based reactive applications.
+A compilation strategy based on **naming conventions** for building Signal-driven reactive applications.
 
-Make signal development nearly transparent, dramatically improving readability while enjoying seamless TypeScript support and an exceptional developer experience.
+Prefix a variable with `$` and the compiler turns it into a signal at build time — development stays nearly transparent, the code reads like ordinary variables, and you keep full TypeScript inference.
+
+Say goodbye to verbose `signal()` wrappers and embrace declarative reactivity.　[中文](./README.md)
 
 ## Features
 
-- **Intuitive API**: Use familiar `$` prefixed variables — no need to learn new primitives.
-- **Signal Propagation**: Enforce reactive chain propagation through explicit naming tags — explicit and controllable.
-- **Framework Agnostic**: Compatible with tools like Babel and Vite. Works seamlessly with signal libraries such as [j20](https://github.com/anuoua/j20) or [Preact Signal](https://github.com/preactjs/signals).
-- **No Confusion**: Signals and regular variables are clearly distinguished, avoiding confusion.
+- **Declarative API**: use the familiar `$` prefix — no new runtime primitives to learn.
+- **Name is signal**: the `$` prefix is the single convention; signals and plain variables are clearly distinguished and explicit.
+- **Framework agnostic**: ships a Babel plugin and a Vite/Rollup plugin, pairing with any signal library such as [j20](https://github.com/anuoua/j20) or [Preact Signals](https://github.com/preactjs/signals).
+- **Type-friendly**: source code uses ordinary variables, so TypeScript works without any special configuration.
 
-Say goodbye to verbose signal wrappers and embrace declarative reactivity!
+## How it works
 
-## Quick Start
+The compiler scans every `$`-prefixed identifier and rewrites it according to the rules:
 
-### Installation
+- `let $x = v` → creates a mutable signal
+- `const $x = v` → creates a derived signal
+- reading `$x` → automatically appends `.value`
+- assigning `$x = v` → redirects to `.value = v`
+
+The required `signal` / `computed` are **auto-injected** from the module you specify (`importSource`). To avoid clashing with existing bindings, the injected identifiers are underscore-prefixed and both are always injected. A file needs only one signal for this to appear at the top:
+
+```javascript
+import { signal as _signal, computed as _computed } from "@preact/signals";
+```
+
+> The «compiles to» blocks below omit the repeated import line; `_signal` / `_computed` refer to those auto-injected helpers.
+
+## Quick start
+
+### Install
 
 ```bash
 npm install signal-compiler
 ```
 
-### Babel Configuration
-
-Add the plugin in `babel.config.js`:
+### Babel
 
 ```javascript
+// babel.config.js
 import { signalCompiler } from "signal-compiler";
 
 export default {
   plugins: [
-    [
-      signalCompiler,
-      {
-        importSource: "@preact/signals", // Specify the signal module (e.g. '@preact/signals')
-      },
-    ],
+    [signalCompiler, { importSource: "@preact/signals" }],
   ],
 };
 ```
 
-### Vite Configuration
-
-Integrate via the Rollup plugin in `vite.config.js`:
+### Vite
 
 ```javascript
+// vite.config.js
 import { defineConfig } from "vite";
 import { signalCompilerRollup } from "signal-compiler/rollup";
 
 export default defineConfig({
   plugins: [
     signalCompilerRollup({
-      include: "src/**/*.{js,jsx,ts,tsx}", // Target files/directories
-      config: {
-        importSource: "@preact/signals",
-      },
+      include: "src/**/*.{js,jsx,ts,tsx}",
+      config: { importSource: "@preact/signals" },
     }),
   ],
 });
 ```
 
-Run your build (`npm run build` or `vite dev`), and your `$` prefixed code will magically become reactive!
+Run `vite dev` or `vite build` and your `$`-prefixed code is compiled automatically.
 
-## Core Compilation Strategy
+## Configuration
 
-The compilation strategy is based on **naming tags**, making signal usage nearly transparent and allowing developers to write more intuitive code.
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `importSource` | `string` | `"j20"` | module to import `signal` / `computed` from |
+| `autoImport` | `boolean` | `true` | auto-inject `signal` / `computed` (when off you must import them yourself, named `signal` / `computed`) |
+| `identifierSignalDeclaration` | `boolean` | `true` | rewrite `let` / `const $x` identifier declarations |
+| `patternSignalDeclaration` | `boolean` | `true` | rewrite destructuring declarations (`let/const { a: $a }`) |
+| `identifierSignalRead` | `boolean` | `true` | append `.value` when a signal is read |
+| `identifierSignalAssign` | `boolean` | `true` | redirect assignment to `.value` |
+| `customHookSignal` | `boolean` | `true` | transform custom Hook (`$use*`) arguments and return values |
 
-The compiler automatically injects `signal()` and `computed()` from the module you specify (e.g., @preact/signals).
+> Babel users pass these directly as plugin options; Vite/Rollup users put them under the `config` field.
 
-### Compilation Rules
+## Compilation rules
 
-1. **Signal Creation**
+### 1. Creating a signal
 
-Use `let` with the `$` prefix:
+A `$`-prefixed `let` binding is wrapped with `signal()`:
 
 ```javascript
 let $name = 1;
-// Compiles to:
-import { signal } from "@preact/signals";
-let $name = signal(1);
+// compiles to:
+let $name = _signal(1);
 ```
 
-2. **Signal Reading**
+### 2. Reading a signal
 
-Automatically append `.value`:
+Any reference to a signal automatically appends `.value`:
 
 ```javascript
 let $name = 1;
 console.log($name);
-// Compiles to:
-let $name = signal(1);
+// compiles to:
+let $name = _signal(1);
 console.log($name.value);
 ```
 
-3. **Signal Assignment**
+### 3. Assigning a signal
 
-Redirect to `.value`:
+Assigning to a signal redirects to `.value`:
 
 ```javascript
 let $name = 1;
 $name = 2;
 console.log($name);
-// Compiles to:
-let $name = signal(1);
+// compiles to:
+let $name = _signal(1);
 $name.value = 2;
 console.log($name.value);
 ```
 
-4. **Signal Derivation**
+### 4. Deriving a signal
 
-Use `const` with the `$` prefix:
+A `$`-prefixed `const` binding is wrapped with `computed()`, establishing the dependency automatically:
 
 ```javascript
 let $name = 1;
 const $displayName = $name + "a";
-// Compiles to:
-import { signal, computed } from "@preact/signals";
-let $name = signal(1);
-const $displayName = computed(() => $name.value + "a");
+// compiles to:
+let $name = _signal(1);
+const $displayName = _computed(() => $name.value + "a");
 ```
 
-Note: If a derived signal is followed by a custom Hook, compilation is skipped because the custom Hook already returns a signal.
+**Exception**: when the initializer already yields a signal, the `computed` wrapping is skipped — this includes custom Hook calls (`$useX(...)`, whose return value is already a signal) and the pass-through call `$()` (below).
 
-5. **Custom Hook**
+### 5. Signal pass-through `$()`
 
-Function names prefixed with `$use` trigger compilation. Destructured input parameters and return values are both processed:
+When a signal appears inside a call to a function **named `$`**, the compiler **skips** the `.value` rewrite on it. `$` means «I explicitly want the signal object itself». So `const $x = $($a)` is not wrapped in `computed`, and the argument `$a` does not get `.value` appended:
+
+```javascript
+let $a = 1;
+const $b = $($a);
+// compiles to:
+let $a = _signal(1);
+const $b = $($a);
+```
+
+Useful when interfacing with APIs that expect the signal object itself.
+
+### 6. Custom Hooks
+
+Functions whose name starts with `$use` are treated as custom Hooks. The compiler:
+
+1. wraps the **return value** in `computed`;
+2. wraps every **argument at the call site** in `computed` (to preserve reactivity).
 
 ```javascript
 function $useName($age) {
@@ -135,97 +166,94 @@ let $age = 1;
 const $name = $useName($age);
 console.log($name);
 
-// Compiles to:
+// compiles to:
 function $useName($age) {
-  let $name = signal(1);
-  // 1. Return value is wrapped in computed
-  return computed(() => $name.value + $age.value);
+  let $name = _signal(1);
+  return _computed(() => $name.value + $age.value);   // return value → computed
 }
-let $age = signal(1);
-// 2. Custom Hook function parameters are wrapped in computed when used
-// const $name derived signal skips compilation when encountering a custom Hook
-// so $useName is not wrapped in computed.
-const $name = $useName(computed(() => $age.value));
+let $age = _signal(1);
+// the derived signal const $name is initialized by a Hook call, so computed is skipped;
+// at the call site the argument $age is wrapped in computed.
+const $name = $useName(_computed(() => $age.value));
 console.log($name.value);
 ```
 
-6. **Component Functions**
+> **Every** `return` in the Hook body (including those nested in `if` / `for` / `try` blocks) is wrapped; returns belonging to inner nested functions are not.
 
-Function names starting with an uppercase letter (to match React-like framework component conventions) whose parameters contain `$` prefixed variables will trigger compilation. Destructured parameters will be processed.
+### 7. Component functions
+
+A function whose name starts with an uppercase letter (the React component convention) and whose parameters include a `$`-prefixed binding triggers parameter-destructuring rewriting.
+
+- **Identifier parameter** (e.g. `($props)`): not destructured, not rewritten. If the framework passes a signal object, references to `$props` in the body still get `.value` appended as usual.
+- **Destructured parameter**: replaced by a temporary variable; each `$`-prefixed target becomes a `computed`:
 
 ```javascript
-const App = ($props) => {}; // No destructuring of input params, no processing needed; the framework handles it before passing
-
-const App = ({ msg: $msg = "hello" }) => {};
-// Compiles to:
-const App = (__$0) => {
-  const $msg = computed(() => __$0.value.msg ?? "hello");
+const App = ({ msg: $msg = "hello" }) => {
+  return $msg;
+};
+// compiles to:
+const App = __$0 => {
+  const $msg = _computed(() => __$0.value["msg"] ?? "hello");
+  return $msg.value;
 };
 ```
 
-7. **Destructuring Assignment**
+### 8. Destructuring assignment
 
-Activate the compilation strategy by setting a `$` prefixed variable alias to maintain reactivity:
+Receiving destructured values through `$`-prefixed aliases preserves reactivity. The compiler wraps the entire right-hand side in `computed`, then emits a `computed` access for each `$` alias:
 
 ```javascript
-// Input parameter is a signal; the 'name' variable needs to be passed with a $ prefixed alias
-// to activate the compilation strategy and preserve reactivity.
 function $useName({ name: $name }) {
-  return {
-    displayName: $name + "a",
-  };
+  return { displayName: $name + "a" };
 }
-
-// Activate compilation strategy via alias $displayName to preserve reactivity.
-const { displayName: $displayName } = $useName({
-  name: 1,
-});
+const { displayName: $displayName } = $useName({ name: 1 });
 console.log($displayName);
 
-// Compiles to:
-function $useName($__0) {
-  // $__0 is a temporary variable storing the input parameters.
-  const $name = computed(() => $__0.value.name);
-  return computed(() => ({
-    displayName: $name.value + "a",
+// compiles to:
+function $useName(__$0) {
+  const $name = _computed(() => __$0.value["name"]);
+  return _computed(() => ({
+    displayName: $name.value + "a"
   }));
 }
-
-const $__0 = $useName(
-  computed(() => ({
-    name: 1,
-  }))
-);
-const $displayName = computed(() => $__0.value.displayName);
+const __$1 = $useName(_computed(() => ({ name: 1 })));
+const $displayName = _computed(() => __$1.value["displayName"]);
 console.log($displayName.value);
 ```
 
-## Signal Propagation
+> `__$0`, `__$1`, … are compiler-generated temporaries (underscore-prefixed, globally incrementing) used to hold signal objects.
 
-Signals can only be propagated to the next signal, i.e., always keeping the `$` prefix, including parameters.
+## Signal propagation
 
-Once a signal is passed to a non-signal variable during propagation, the reactive chain you expect will be broken, ultimately causing your UI to stop updating.
+A signal can only be propagated to the next signal — every step of the chain must keep the `$` prefix, including function parameters. The moment it is assigned to a non-`$` variable, the reactive chain breaks and the UI stops updating.
 
 ```javascript
 const $useMsg = ({ msg: $msg = "hello" }) => {
-  return {
-    msg: $msg,
-  }
+  return { msg: $msg };
 };
-
 let $hello2 = { msg: "hello2" };
-
 const { msg: $msg } = $useMsg($hello2);
 ```
 
-The above is a typical usage where signal propagation succeeds:
+Chain: `$hello2 → $useMsg($hello2) → { msg: $msg }` — every step keeps the `$` prefix, so propagation succeeds.
 
-```
-$hello2 -> $useMsg($hello2) -> { msg: $msg }
+## Limitations & caveats
+
+- **Naming-convention based**: the compiler identifies signals purely by the `$` prefix and **does not distinguish scope or binding**. Any `$`-prefixed identifier (including third-party code, jQuery-style `$xxx`) is treated as a signal. Isolate such code when mixing.
+- **The reactive chain must be maintained explicitly**: see above — losing the `$` prefix loses reactivity.
+- **The `$` prefix is a strong convention**: `$use*` is a Hook, an uppercase name with a `$` parameter is a component, any other `$xxx` is a signal. Avoid naming collisions.
+
+## TypeScript
+
+Variables prefixed with `$` are ordinary variables in source, typed through normal inference, with no extra configuration:
+
+```typescript
+let $count = 0;              // TS infers number
+const $double = $count * 2;  // TS infers number
 ```
 
-At each step, the signal is propagated to the next signal, always maintaining the `$` prefix.
+Note: TypeScript still treats these as plain values (e.g. `number`); it does **not** know that at runtime they are signal objects. This is the trade-off — in exchange you get zero type configuration and native syntax. Compilation (signalization) happens only in the Babel / Rollup build phase and does not affect type-checking.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
