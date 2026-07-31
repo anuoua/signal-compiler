@@ -22,13 +22,13 @@
 - 读取 `$x` → 自动追加 `.value`
 - 赋值 `$x = v` → 重定向到 `.value = v`
 
-所需的 `signal` / `computed` 会从你指定的模块（`importSource`）**自动注入**。为避免与已有变量冲突，注入的标识符带下划线前缀，并总是同时注入两者。一个文件里只需出现一次信号，顶部就会出现：
+所需的 `signal` / `computed` 会从你指定的模块（`importSource`）**按需自动注入**——只有当文件里真正创建或派生信号时才注入对应的辅助函数（为避免与已有变量冲突，注入的标识符带下划线前缀）。因此一个**只读取、赋值**信号的文件（例如跨文件消费）不会产生任何额外 import；只有声明了信号的文件顶部才会出现：
 
 ```javascript
 import { signal as _signal, computed as _computed } from "@preact/signals";
 ```
 
-> 下文各规则的「编译为」省略了重复的 import 行，但 `_signal` / `_computed` 即代表上述自动注入的辅助函数。
+> 下文各规则的「编译为」省略了重复的 import 行，但 `_signal` / `_computed` 即代表上述按需注入的辅助函数。
 
 ## 快速开始
 
@@ -75,7 +75,8 @@ export default defineConfig({
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `importSource` | `string` | `"j20"` | `signal` / `computed` 的来源模块 |
-| `autoImport` | `boolean` | `true` | 是否自动注入 `signal` / `computed`（关闭则需自行导入，标识符须命名为 `signal` / `computed`） |
+| `autoImport` | `boolean` | `true` | 是否自动（按需）注入 `signal` / `computed`（关闭则需自行导入，标识符须命名为 `signal` / `computed`） |
+| `diagnostics` | `boolean` | `true` | 开启编译期诊断（响应链断裂、命名契约违例，见[诊断](#诊断)） |
 | `identifierSignalDeclaration` | `boolean` | `true` | `let` / `const $x` 标识符声明的转换 |
 | `patternSignalDeclaration` | `boolean` | `true` | 解构声明（`let/const { a: $a }`）的转换 |
 | `identifierSignalRead` | `boolean` | `true` | 信号读取时追加 `.value` |
@@ -110,16 +111,31 @@ console.log($name.value);
 
 ### 3. 赋值信号
 
-对信号赋值会重定向到 `.value`：
+对信号赋值会重定向到 `.value`，包括复合赋值与自增自减：
 
 ```javascript
 let $name = 1;
 $name = 2;
+$name += 1;
+$name++;
 console.log($name);
 // 编译为：
 let $name = _signal(1);
 $name.value = 2;
+$name.value += 1;
+$name.value++;
 console.log($name.value);
+```
+
+**解构赋值语句**（非声明的 `({ $a } = obj)` / `[$a] = arr`）同样会把每个 `$` 目标重定向到 `.value`：
+
+```javascript
+let $a, $b;
+({ $a, k: $b } = obj);
+[$a, $b] = arr;
+// 编译为：
+({ $a: $a.value, k: $b.value } = obj);
+[$a.value, $b.value] = arr;
 ```
 
 ### 4. 派生信号
@@ -237,10 +253,27 @@ const { msg: $msg } = $useMsg($hello2);
 
 链路：`$hello2 → $useMsg($hello2) → { msg: $msg }`，每一步都保持了 `$` 前缀，传递成功。
 
+## 诊断
+
+开启 `diagnostics`（默认开启）后，编译器会对两类**原本会静默失效**的错误打印带代码位置的警告（不会中断编译）：
+
+1. **响应链断裂**——信号被赋给非 `$` 前缀的变量：
+   ```javascript
+   let $a = 1;
+   const b = $a;   // ⚠ "$a" is a signal but is assigned to non-signal "b" — the reactive chain breaks here.
+   ```
+2. **命名契约违例**——`$` 前缀的声明无法成为信号：
+   ```javascript
+   let $a;              // ⚠ "$a" has a $ prefix but no initializer, so it will not become a signal.
+   function $foo() {}   // ⚠ function "$foo" starts with $ but is neither a custom hook ($use*) nor a component.
+   ```
+
+警告带文件位置与代码高亮，便于排查；可通过 `diagnostics: false` 关闭。
+
 ## 局限与注意事项
 
 - **基于命名约定**：编译器仅凭 `$` 前缀识别信号，**不区分作用域与绑定**。任何带 `$` 前缀的标识符（包括第三方代码、jQuery 风格的 `$xxx`）都会被当作信号转换。混用此类代码时请注意隔离。
-- **响应链必须显式维护**：见上一节，丢失 `$` 前缀即丢失响应性。
+- **响应链必须显式维护**：见[信号传递](#信号传递)，丢失 `$` 前缀即丢失响应性——开启 [诊断](#诊断) 可在编译期自动发现这类断裂。
 - **`$` 前缀是强约定**：`$use*` 是 Hook、首字母大写且带 `$` 参数的是组件、其余 `$xxx` 是信号。请避免命名冲突。
 
 ## TypeScript

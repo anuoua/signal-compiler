@@ -22,13 +22,13 @@ The compiler scans every `$`-prefixed identifier and rewrites it according to th
 - reading `$x` → automatically appends `.value`
 - assigning `$x = v` → redirects to `.value = v`
 
-The required `signal` / `computed` are **auto-injected** from the module you specify (`importSource`). To avoid clashing with existing bindings, the injected identifiers are underscore-prefixed and both are always injected. A file needs only one signal for this to appear at the top:
+The required `signal` / `computed` are **injected on demand** from the module you specify (`importSource`) — only when a file actually creates or derives a signal, and underscore-prefixed to avoid clashing with existing bindings. So a file that only *reads* or *assigns* signals (e.g. a cross-file consumer) gets no extra import at all; only files that declare signals get this at the top:
 
 ```javascript
 import { signal as _signal, computed as _computed } from "@preact/signals";
 ```
 
-> The «compiles to» blocks below omit the repeated import line; `_signal` / `_computed` refer to those auto-injected helpers.
+> The «compiles to» blocks below omit the repeated import line; `_signal` / `_computed` refer to those on-demand-injected helpers.
 
 ## Quick start
 
@@ -75,7 +75,8 @@ Run `vite dev` or `vite build` and your `$`-prefixed code is compiled automatica
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `importSource` | `string` | `"j20"` | module to import `signal` / `computed` from |
-| `autoImport` | `boolean` | `true` | auto-inject `signal` / `computed` (when off you must import them yourself, named `signal` / `computed`) |
+| `autoImport` | `boolean` | `true` | (on-demand) auto-inject `signal` / `computed` (when off you must import them yourself, named `signal` / `computed`) |
+| `diagnostics` | `boolean` | `true` | emit compile-time diagnostics (broken reactive chain, naming-contract violations — see [Diagnostics](#diagnostics)) |
 | `identifierSignalDeclaration` | `boolean` | `true` | rewrite `let` / `const $x` identifier declarations |
 | `patternSignalDeclaration` | `boolean` | `true` | rewrite destructuring declarations (`let/const { a: $a }`) |
 | `identifierSignalRead` | `boolean` | `true` | append `.value` when a signal is read |
@@ -110,16 +111,31 @@ console.log($name.value);
 
 ### 3. Assigning a signal
 
-Assigning to a signal redirects to `.value`:
+Assigning to a signal redirects to `.value` — including compound assignments and increment/decrement:
 
 ```javascript
 let $name = 1;
 $name = 2;
+$name += 1;
+$name++;
 console.log($name);
 // compiles to:
 let $name = _signal(1);
 $name.value = 2;
+$name.value += 1;
+$name.value++;
 console.log($name.value);
+```
+
+**Destructuring assignment statements** (non-declaration `({ $a } = obj)` / `[$a] = arr`) likewise redirect every `$` target to `.value`:
+
+```javascript
+let $a, $b;
+({ $a, k: $b } = obj);
+[$a, $b] = arr;
+// compiles to:
+({ $a: $a.value, k: $b.value } = obj);
+[$a.value, $b.value] = arr;
 ```
 
 ### 4. Deriving a signal
@@ -237,10 +253,27 @@ const { msg: $msg } = $useMsg($hello2);
 
 Chain: `$hello2 → $useMsg($hello2) → { msg: $msg }` — every step keeps the `$` prefix, so propagation succeeds.
 
+## Diagnostics
+
+With `diagnostics` on (the default), the compiler emits code-framed warnings — without failing the build — for two classes of mistakes that would otherwise fail silently:
+
+1. **Broken reactive chain** — a signal assigned to a non-`$` variable:
+   ```javascript
+   let $a = 1;
+   const b = $a;   // ⚠ "$a" is a signal but is assigned to non-signal "b" — the reactive chain breaks here.
+   ```
+2. **Naming-contract violation** — a `$`-prefixed declaration that cannot become a signal:
+   ```javascript
+   let $a;              // ⚠ "$a" has a $ prefix but no initializer, so it will not become a signal.
+   function $foo() {}   // ⚠ function "$foo" starts with $ but is neither a custom hook ($use*) nor a component.
+   ```
+
+Warnings carry file position and source highlight for easy triage; turn them off with `diagnostics: false`.
+
 ## Limitations & caveats
 
 - **Naming-convention based**: the compiler identifies signals purely by the `$` prefix and **does not distinguish scope or binding**. Any `$`-prefixed identifier (including third-party code, jQuery-style `$xxx`) is treated as a signal. Isolate such code when mixing.
-- **The reactive chain must be maintained explicitly**: see above — losing the `$` prefix loses reactivity.
+- **The reactive chain must be maintained explicitly**: see [Signal propagation](#signal-propagation) — losing the `$` prefix loses reactivity; enabling [Diagnostics](#diagnostics) surfaces such breaks at compile time.
 - **The `$` prefix is a strong convention**: `$use*` is a Hook, an uppercase name with a `$` parameter is a component, any other `$xxx` is a signal. Avoid naming collisions.
 
 ## TypeScript
