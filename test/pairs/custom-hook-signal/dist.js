@@ -1,4 +1,4 @@
-import { signal as _signal, computed as _computed } from "source";
+import { computed as _computed } from "source";
 const $useClip = __$0 => {
   const $rest = _computed(() => (() => {
     const {

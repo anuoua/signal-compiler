@@ -1,4 +1,4 @@
-import { signal as _signal, computed as _computed } from "source";
+import { computed as _computed, signal as _signal } from "source";
 let __$0 = _computed(() => ({}));
 let $p = _signal((__$0.value["a"] ?? 3)["p"]);
 let $cc = _signal(((__$0.value["a"] ?? 3)["$ddd"] ?? 8)["c"]["1"]);

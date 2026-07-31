@@ -4,10 +4,12 @@ import type { PluginObj } from "@babel/core";
 import { defaultConfig, type Config } from "./types";
 import type { Ctx } from "./context";
 import { buildPattern, hasSignalInPattern } from "./utils/pattern";
-import { createProgramVisitor } from "./visitors/program";
+import { createInjector } from "./utils/inject";
 import { createDeclarationVisitor } from "./visitors/declaration";
 import { createReferenceVisitor } from "./visitors/reference";
 import { createFunctionVisitor } from "./visitors/function";
+import { createDiagnosticsVisitor } from "./visitors/diagnostics";
+import { mergeVisitors } from "./utils/merge-visitors";
 
 export const signalCompiler = (
   _babel: typeof babelCore,
@@ -16,21 +18,24 @@ export const signalCompiler = (
   const config = { ...defaultConfig, ...options };
 
   let tempCount = 0;
+  const injector = createInjector(config.importSource, config.autoImport);
   const ctx: Ctx = {
     config,
     createTempVar: () => `__$${tempCount++}`,
     buildPattern,
     hasSignalInPattern,
+    ensureSignal: injector.ensureSignal,
+    ensureComputed: injector.ensureComputed,
   };
 
   return {
     name: "signal-compiler",
     inherits: jsx,
-    visitor: {
-      ...createProgramVisitor(ctx),
-      ...createDeclarationVisitor(ctx),
-      ...createReferenceVisitor(ctx),
-      ...createFunctionVisitor(ctx),
-    } as PluginObj["visitor"],
+    visitor: mergeVisitors(
+      createDeclarationVisitor(ctx),
+      createReferenceVisitor(ctx),
+      createFunctionVisitor(ctx),
+      createDiagnosticsVisitor(ctx)
+    ),
   };
 };

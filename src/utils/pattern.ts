@@ -183,3 +183,66 @@ export const buildPattern: PatternBuilder = (pattern, object, kind, insert) => {
     }
   }
 };
+
+/**
+ * Rewrite a destructuring *assignment* target (not a declaration) so that every
+ * signal-named binding is redirected to its `.value`. Used for statement-form
+ * destructuring assignments like `({ $a } = obj)` / `[$a] = arr`.
+ *
+ * Mutates the pattern in place. Caller is expected to `skip()` traversal of
+ * the rewritten subtree so the read visitor does not touch the emitted
+ * `.value` accesses.
+ */
+export const rewriteAssignmentPattern = (
+  pattern: t.ObjectPattern | t.ArrayPattern
+): void => {
+  const wrap = (id: t.Expression): t.MemberExpression =>
+    t.memberExpression(id, t.identifier("value"), false);
+
+  if (t.isObjectPattern(pattern)) {
+    pattern.properties.forEach((property) => {
+      if (t.isObjectProperty(property)) {
+        const value = property.value as t.Node;
+        if (t.isIdentifier(value) && isSignal(value.name)) {
+          property.value = wrap(t.cloneNode(value));
+          property.shorthand = false;
+        } else if (
+          t.isAssignmentPattern(value) &&
+          t.isIdentifier(value.left) &&
+          isSignal(value.left.name)
+        ) {
+          value.left = wrap(value.left);
+        } else if (t.isObjectPattern(value) || t.isArrayPattern(value)) {
+          rewriteAssignmentPattern(value);
+        }
+      } else if (
+        t.isRestElement(property) &&
+        t.isIdentifier(property.argument) &&
+        isSignal(property.argument.name)
+      ) {
+        property.argument = wrap(property.argument);
+      }
+    });
+  } else if (t.isArrayPattern(pattern)) {
+    pattern.elements.forEach((element, i) => {
+      if (!element) return;
+      if (t.isIdentifier(element) && isSignal(element.name)) {
+        pattern.elements[i] = wrap(t.cloneNode(element));
+      } else if (
+        t.isAssignmentPattern(element) &&
+        t.isIdentifier(element.left) &&
+        isSignal(element.left.name)
+      ) {
+        element.left = wrap(element.left);
+      } else if (
+        t.isRestElement(element) &&
+        t.isIdentifier(element.argument) &&
+        isSignal(element.argument.name)
+      ) {
+        element.argument = wrap(element.argument);
+      } else if (t.isObjectPattern(element) || t.isArrayPattern(element)) {
+        rewriteAssignmentPattern(element);
+      }
+    });
+  }
+};

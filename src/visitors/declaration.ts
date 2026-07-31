@@ -7,7 +7,8 @@ import { signalCall, computedCall, valueOf } from "../utils/build";
 type State = PluginPass;
 
 export const createDeclarationVisitor = (ctx: Ctx) => {
-  const { config, createTempVar, buildPattern, hasSignalInPattern } = ctx;
+  const { config, createTempVar, buildPattern, hasSignalInPattern, ensureSignal, ensureComputed } =
+    ctx;
 
   // True when the initializer already yields a signal and must stay untouched —
   // a custom-hook call (`$useX(...)`) or a pass-through `$()`.
@@ -17,10 +18,15 @@ export const createDeclarationVisitor = (ctx: Ctx) => {
     t.isIdentifier(init.callee) &&
     (isCustomHook(init.callee.name) || isDollar(init.callee.name));
 
-  const wrapInit = (init: t.Expression, kind: "let" | "const", state: State) =>
+  const wrapInit = (
+    path: NodePath,
+    init: t.Expression,
+    kind: "let" | "const",
+    state: State
+  ) =>
     kind === "let"
-      ? signalCall(state.signalVarName, init)
-      : computedCall(state.computedVarName, init);
+      ? signalCall(ensureSignal(path, state), init)
+      : computedCall(ensureComputed(path, state), init);
 
   return {
     VariableDeclaration(
@@ -40,7 +46,7 @@ export const createDeclarationVisitor = (ctx: Ctx) => {
             isSignal(decl.id.name) &&
             !isRawSignalInit(decl.init)
           ) {
-            decl.init = wrapInit(decl.init, kind, state);
+            decl.init = wrapInit(path, decl.init, kind, state);
           }
           return;
         }
@@ -57,7 +63,7 @@ export const createDeclarationVisitor = (ctx: Ctx) => {
 
           if (!isRawSignalInit(decl.init)) {
             decl.init = computedCall(
-              state.computedVarName,
+              ensureComputed(path, state),
               (decl.init ?? t.identifier("undefined")) as t.Expression
             );
           }

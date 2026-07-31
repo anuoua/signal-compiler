@@ -3,6 +3,7 @@ import type { PluginPass } from "@babel/core";
 export interface Config {
   importSource: string;
   autoImport?: boolean;
+  diagnostics?: boolean;
   identifierSignalDeclaration?: boolean;
   patternSignalDeclaration?: boolean;
   identifierSignalRead?: boolean;
@@ -13,6 +14,7 @@ export interface Config {
 export const defaultConfig: Required<Config> = {
   importSource: "j20",
   autoImport: true,
+  diagnostics: true,
   identifierSignalDeclaration: true,
   patternSignalDeclaration: true,
   identifierSignalRead: true,

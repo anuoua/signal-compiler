@@ -10,7 +10,7 @@ type State = PluginPass;
 type FnNode = t.FunctionDeclaration;
 
 export const createFunctionVisitor = (ctx: Ctx) => {
-  const { config, createTempVar, buildPattern, hasSignalInPattern } = ctx;
+  const { config, createTempVar, buildPattern, hasSignalInPattern, ensureComputed } = ctx;
 
   // Resolve the binding name of a function: prefer `const $useX = () => {}`
   // (the variable it is assigned to), fall back to a declared name.
@@ -56,7 +56,7 @@ export const createFunctionVisitor = (ctx: Ctx) => {
   const processReturns = (fnPath: NodePath, state: State) => {
     const bodyPath = fnPath.get("body") as NodePath;
     if (bodyPath.isBlockStatement()) {
-      const computed = state.computedVarName;
+      const computed = ensureComputed(fnPath, state);
       // Wrap EVERY direct return of this hook, including those nested in
       // if/for/try blocks — but never returns belonging to an inner function.
       bodyPath.traverse({
@@ -71,7 +71,7 @@ export const createFunctionVisitor = (ctx: Ctx) => {
     } else if (bodyPath.isExpression()) {
       // expression-body arrow hook: the body itself is the returned signal
       (fnPath.node as t.ArrowFunctionExpression).body = computedCall(
-        state.computedVarName,
+        ensureComputed(fnPath, state),
         bodyPath.node as t.Expression
       );
     }
@@ -95,8 +95,9 @@ export const createFunctionVisitor = (ctx: Ctx) => {
     if (!config.customHookSignal) return;
     const callee = path.node.callee;
     if (t.isIdentifier(callee) && isCustomHook(callee.name)) {
+      const computed = ensureComputed(path, state);
       path.node.arguments = path.node.arguments.map((arg) =>
-        computedCall(state.computedVarName, arg as t.Expression)
+        computedCall(computed, arg as t.Expression)
       );
     }
   };
