@@ -1,7 +1,4 @@
-export interface GlobalState {
-  signalImported: boolean;
-  createVarCount: number;
-}
+import type { PluginPass } from "@babel/core";
 
 export interface Config {
   importSource: string;
@@ -11,4 +8,21 @@ export interface Config {
   identifierSignalRead?: boolean;
   customHookSignal?: boolean;
   identifierSignalAssign?: boolean;
+}
+
+export const defaultConfig: Required<Config> = {
+  importSource: "j20",
+  autoImport: true,
+  identifierSignalDeclaration: true,
+  patternSignalDeclaration: true,
+  identifierSignalRead: true,
+  customHookSignal: true,
+  identifierSignalAssign: true,
+};
+
+declare module "@babel/core" {
+  interface PluginPass {
+    signalVarName: string;
+    computedVarName: string;
+  }
 }

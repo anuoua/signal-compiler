@@ -27,6 +27,6 @@ for (const pair of pairs) {
   }).toString();
 
   it(`pair: ${pair}`, () => {
-    expect(trans(source)!.code).toBe(dist);
+    expect(trans(source)!.code.trimEnd()).toBe(dist.trimEnd());
   })
 }

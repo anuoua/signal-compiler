@@ -1,56 +1,36 @@
-// @ts-ignore
 import jsx from "@babel/plugin-syntax-jsx";
 import * as babelCore from "@babel/core";
-import { identifierSignalDeclaration } from "./strategies/identifier-signal-declaration";
-import { identifierSignalRead } from "./strategies/identifier-signal-read";
-import { composeVisitors } from "./utils/compose-visitors";
 import type { PluginObj } from "@babel/core";
-import type { Config, GlobalState } from "./types";
-import { patternSignalDeclaration } from "./strategies/pattern-signal-declaration";
-import { customHookSignal } from "./strategies/custom-hook-signal";
-import { identifierSignalAssign } from "./strategies/identifier-signal-assign";
-import { autoImport } from "./strategies/add-source";
-
-const defaultConfig: Config = {
-  autoImport: true,
-  importSource: "j20",
-  identifierSignalDeclaration: true,
-  patternSignalDeclaration: true,
-  identifierSignalRead: true,
-  customHookSignal: true,
-  identifierSignalAssign: true,
-};
+import { defaultConfig, type Config } from "./types";
+import type { Ctx } from "./context";
+import { buildPattern, hasSignalInPattern } from "./utils/pattern";
+import { createProgramVisitor } from "./visitors/program";
+import { createDeclarationVisitor } from "./visitors/declaration";
+import { createReferenceVisitor } from "./visitors/reference";
+import { createFunctionVisitor } from "./visitors/function";
 
 export const signalCompiler = (
-  babel: typeof babelCore,
-  config: Required<Config>
+  _babel: typeof babelCore,
+  options: Partial<Config> = {}
 ): PluginObj => {
-  const globalState: GlobalState = {
-    signalImported: false,
-    createVarCount: 0,
-  };
+  const config = { ...defaultConfig, ...options };
 
-  config = {
-    ...defaultConfig,
-    ...config,
+  let tempCount = 0;
+  const ctx: Ctx = {
+    config,
+    createTempVar: () => `__$${tempCount++}`,
+    buildPattern,
+    hasSignalInPattern,
   };
-
-  const strategies = [
-    config.identifierSignalDeclaration
-      ? identifierSignalDeclaration(babel, config, globalState)
-      : null,
-    config.patternSignalDeclaration
-      ? patternSignalDeclaration(babel, config, globalState)
-      : null,
-    config.identifierSignalAssign ? identifierSignalAssign(babel) : null,
-    config.identifierSignalRead ? identifierSignalRead(babel) : null,
-    config.customHookSignal ? customHookSignal(babel, config) : null,
-    config.autoImport ? autoImport(babel, config) : null,
-  ].filter((i) => i) as babelCore.Visitor[];
 
   return {
     name: "signal-compiler",
     inherits: jsx,
-    visitor: composeVisitors(strategies),
+    visitor: {
+      ...createProgramVisitor(ctx),
+      ...createDeclarationVisitor(ctx),
+      ...createReferenceVisitor(ctx),
+      ...createFunctionVisitor(ctx),
+    } as PluginObj["visitor"],
   };
 };
