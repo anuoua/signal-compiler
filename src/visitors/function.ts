@@ -30,9 +30,12 @@ export const createFunctionVisitor = (ctx: Ctx) => {
       fn.body.body.unshift(stmt);
     } else {
       // expression-body arrow: wrap so we can prepend statements
+      // expression-body arrow: wrap so we can prepend statements. The original
+      // body expression must be RETURNED, not dropped as a bare expression
+      // statement — otherwise the component/hook returns undefined.
       (fnPath.node as t.ArrowFunctionExpression).body = t.blockStatement([
         stmt,
-        t.expressionStatement(fn.body as t.Expression),
+        t.returnStatement(fn.body as t.Expression),
       ]);
     }
   };

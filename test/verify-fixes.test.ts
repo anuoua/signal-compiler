@@ -38,3 +38,12 @@ it("bug4: local `let signal` does not hijack import injection", () => {
   expect(out).toContain("import { signal as _signal"); // injected despite local binding
   expect(out).toContain("_signal(1)"); // uses the injected helper
 });
+
+it("bug5: expression-body arrow with $-destructured param keeps its return", () => {
+  // Rewriting the destructured signal param forces the arrow body into a block;
+  // that block must RETURN the original body expression instead of dropping it
+  // as a bare expression statement (which made the component return undefined).
+  const out = run("const Comp = ({ a: $a }) => $a + 1;\n");
+  console.log("\n--- bug5 expr-body-arrow ---\n" + out);
+  expect(out).toContain("return $a.value + 1"); // block returns the body expression (bug dropped it)
+});
