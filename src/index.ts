@@ -10,9 +10,11 @@ import { createReferenceVisitor } from "./visitors/reference";
 import { createFunctionVisitor } from "./visitors/function";
 import { createDiagnosticsVisitor } from "./visitors/diagnostics";
 import { mergeVisitors } from "./utils/merge-visitors";
-import { SIGNAL_COMPONENT_MARKER } from "./utils/marker";
 
-export { SIGNAL_COMPONENT_MARKER };
+// --- 约定/标记工具，供 JSX 转换插件（如 j20 的 jsx-transform）共用 ---
+export { SIGNAL_COMPONENT_MARKER, hasSignalComponentMarker } from "./utils/marker";
+export { hasSignalInPattern } from "./utils/pattern";
+export { isDollar, isSignal, isCustomHook, isComponentFunction } from "./utils/is";
 
 export const signalCompiler = (
   _babel: typeof babelCore,
