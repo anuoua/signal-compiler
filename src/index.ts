@@ -10,6 +10,9 @@ import { createReferenceVisitor } from "./visitors/reference";
 import { createFunctionVisitor } from "./visitors/function";
 import { createDiagnosticsVisitor } from "./visitors/diagnostics";
 import { mergeVisitors } from "./utils/merge-visitors";
+import { SIGNAL_COMPONENT_MARKER } from "./utils/marker";
+
+export { SIGNAL_COMPONENT_MARKER };
 
 export const signalCompiler = (
   _babel: typeof babelCore,

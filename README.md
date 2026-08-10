@@ -82,6 +82,7 @@ export default defineConfig({
 | `identifierSignalRead` | `boolean` | `true` | 信号读取时追加 `.value` |
 | `identifierSignalAssign` | `boolean` | `true` | 信号赋值时重定向到 `.value` |
 | `customHookSignal` | `boolean` | `true` | 自定义 Hook（`$use*`）的参数与返回值转换 |
+| `markerSignalComponent` | `boolean` | `true` | 识别 `@signal-component` 注释标记的行内组件（render prop，见[行内组件](#8-行内组件signal-component-标记)） |
 
 > Babel 用户直接在插件选项中传入；Vite/Rollup 用户将其放在 `config` 字段下。
 
@@ -214,7 +215,39 @@ const App = __$0 => {
 };
 ```
 
-### 8. 解构赋值
+### 8. 行内组件（`@signal-component` 标记）
+
+行内组件（render prop，如 `<Comp Title={({ msg: $msg }) => ...} />`）是**匿名函数**，没有名字可依。signal-compiler 本身不处理 JSX，因此约定：由 JSX 转换插件（如 j20 的 jsx-transform）在函数节点上添加 `@signal-component` 注释标记，编译器检测到标记即按组件编译（参数解构 → `computed`）：
+
+```javascript
+// 源（JSX 转换插件先于 signal-compiler 执行，并在函数上添加标记）：
+const Comp = () => ({
+  get Title() {
+    return /* @signal-component */ ({ msg: $msg }) => {
+      return $msg;
+    };
+  },
+});
+// 编译为：
+const Comp = () => ({
+  get Title() {
+    return /* @signal-component */ __$0 => {
+      const $msg = _computed(() => __$0.value["msg"]);
+      return $msg.value;
+    };
+  },
+});
+```
+
+要点：
+
+- **标记必须用块注释**（`/* @signal-component */`，即 `t.addComment(node, "leading", "@signal-component")`），不要用行注释——行内组件常落在 `return` 表达式位置，行注释会触发 ASI 损坏代码。
+- 标记需在 signal-compiler 运行**之前**存在，因此 JSX 转换插件必须先于 signal-compiler 执行（独立 Babel pass）。
+- 识别优先级：`$use*` Hook > 首字母大写组件 > `@signal-component` 标记。
+- 标记字符串可从入口导出以避免漂移：`import { SIGNAL_COMPONENT_MARKER } from "signal-compiler"`。
+- 可通过 `markerSignalComponent: false` 关闭。
+
+### 9. 解构赋值
 
 通过 `$` 前缀的别名接收解构值，可保留响应性。编译器会把整个右侧包进 `computed`，再为每个 `$` 别名生成一个 `computed` 访问：
 
@@ -275,6 +308,7 @@ const { msg: $msg } = $useMsg($hello2);
 - **基于命名约定**：编译器仅凭 `$` 前缀识别信号，**不区分作用域与绑定**。任何带 `$` 前缀的标识符（包括第三方代码、jQuery 风格的 `$xxx`）都会被当作信号转换。混用此类代码时请注意隔离。
 - **响应链必须显式维护**：见[信号传递](#信号传递)，丢失 `$` 前缀即丢失响应性——开启 [诊断](#诊断) 可在编译期自动发现这类断裂。
 - **`$` 前缀是强约定**：`$use*` 是 Hook、首字母大写且带 `$` 参数的是组件、其余 `$xxx` 是信号。请避免命名冲突。
+- **行内组件需标记**：匿名函数（render prop）不会被自动识别为组件，需要 JSX 转换插件添加 `@signal-component` 注释（见[行内组件](#8-行内组件signal-component-标记)），且该插件必须先于 signal-compiler 执行。
 
 ## TypeScript
 

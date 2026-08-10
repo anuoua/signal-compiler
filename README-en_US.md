@@ -82,6 +82,7 @@ Run `vite dev` or `vite build` and your `$`-prefixed code is compiled automatica
 | `identifierSignalRead` | `boolean` | `true` | append `.value` when a signal is read |
 | `identifierSignalAssign` | `boolean` | `true` | redirect assignment to `.value` |
 | `customHookSignal` | `boolean` | `true` | transform custom Hook (`$use*`) arguments and return values |
+| `markerSignalComponent` | `boolean` | `true` | recognize inline components (render props) marked with a `@signal-component` comment (see [Inline components](#8-inline-components-signal-component-marker)) |
 
 > Babel users pass these directly as plugin options; Vite/Rollup users put them under the `config` field.
 
@@ -214,7 +215,39 @@ const App = __$0 => {
 };
 ```
 
-### 8. Destructuring assignment
+### 8. Inline components (`@signal-component` marker)
+
+Inline components (render props, e.g. `<Comp Title={({ msg: $msg }) => ...} />`) are **anonymous functions** with no name to rely on. signal-compiler does not handle JSX itself, so the convention is: the JSX transform plugin (e.g. j20's jsx-transform) attaches a `@signal-component` comment to the function node, and the compiler treats any function carrying the marker as a component (destructured params → `computed`):
+
+```javascript
+// source (the JSX transform runs before signal-compiler and adds the marker):
+const Comp = () => ({
+  get Title() {
+    return /* @signal-component */ ({ msg: $msg }) => {
+      return $msg;
+    };
+  },
+});
+// compiles to:
+const Comp = () => ({
+  get Title() {
+    return /* @signal-component */ __$0 => {
+      const $msg = _computed(() => __$0.value["msg"]);
+      return $msg.value;
+    };
+  },
+});
+```
+
+Notes:
+
+- The marker **must be a block comment** (`/* @signal-component */`, i.e. `t.addComment(node, "leading", "@signal-component")`) — not a line comment, because inline components usually sit in `return` expression position, where a line comment triggers ASI and breaks the code.
+- The marker must exist **before** signal-compiler runs, so the JSX transform must execute first (in a separate Babel pass).
+- Priority: `$use*` Hook > uppercase component > `@signal-component` marker.
+- Import the constant to avoid drift: `import { SIGNAL_COMPONENT_MARKER } from "signal-compiler"`.
+- Disable via `markerSignalComponent: false`.
+
+### 9. Destructuring assignment
 
 Receiving destructured values through `$`-prefixed aliases preserves reactivity. The compiler wraps the entire right-hand side in `computed`, then emits a `computed` access for each `$` alias:
 
@@ -275,6 +308,7 @@ Warnings carry file position and source highlight for easy triage; turn them off
 - **Naming-convention based**: the compiler identifies signals purely by the `$` prefix and **does not distinguish scope or binding**. Any `$`-prefixed identifier (including third-party code, jQuery-style `$xxx`) is treated as a signal. Isolate such code when mixing.
 - **The reactive chain must be maintained explicitly**: see [Signal propagation](#signal-propagation) — losing the `$` prefix loses reactivity; enabling [Diagnostics](#diagnostics) surfaces such breaks at compile time.
 - **The `$` prefix is a strong convention**: `$use*` is a Hook, an uppercase name with a `$` parameter is a component, any other `$xxx` is a signal. Avoid naming collisions.
+- **Inline components need the marker**: anonymous functions (render props) are not recognized as components automatically — the JSX transform plugin must add a `@signal-component` comment (see [Inline components](#8-inline-components-signal-component-marker)) and must run before signal-compiler.
 
 ## TypeScript
 

@@ -3,6 +3,7 @@ import type { NodePath, PluginPass, Visitor } from "@babel/core";
 import type { Ctx } from "../context";
 import { isCustomHook, isComponentFunction } from "../utils/is";
 import { computedCall, valueOf } from "../utils/build";
+import { hasSignalComponentMarker } from "../utils/marker";
 
 type State = PluginPass;
 // Every function shape shares `params`/`body`; FunctionDeclaration is used as
@@ -82,13 +83,15 @@ export const createFunctionVisitor = (ctx: Ctx) => {
 
   const visitFunction = (path: NodePath, state: State) => {
     const name = getFunctionName(path);
-    if (!name) return;
 
-    const isHook = isCustomHook(name);
-    const isComponent = isComponentFunction(name);
-    // Only hooks and component functions participate — a plain named function
-    // with a `$`-destructured param is left untouched.
-    if (!isHook && !isComponent) return;
+    const isHook = !!name && isCustomHook(name);
+    const isComponent = !!name && isComponentFunction(name);
+    // Marker-driven inline component (render prop). Priority:
+    // `$use*` hook > uppercase component > `@signal-component` marker.
+    const isMarkedComponent =
+      config.markerSignalComponent && hasSignalComponentMarker(path.node);
+
+    if (!isHook && !isComponent && !isMarkedComponent) return;
 
     if (config.patternSignalDeclaration) processParams(path);
     if (isHook && config.customHookSignal) processReturns(path, state);

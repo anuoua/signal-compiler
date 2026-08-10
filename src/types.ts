@@ -9,6 +9,7 @@ export interface Config {
   identifierSignalRead?: boolean;
   customHookSignal?: boolean;
   identifierSignalAssign?: boolean;
+  markerSignalComponent?: boolean;
 }
 
 export const defaultConfig: Required<Config> = {
@@ -20,6 +21,7 @@ export const defaultConfig: Required<Config> = {
   identifierSignalRead: true,
   customHookSignal: true,
   identifierSignalAssign: true,
+  markerSignalComponent: true,
 };
 
 declare module "@babel/core" {
