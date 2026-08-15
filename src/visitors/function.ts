@@ -100,12 +100,28 @@ export const createFunctionVisitor = (ctx: Ctx) => {
   const visitCall = (path: NodePath<t.CallExpression>, state: State) => {
     if (!config.customHookSignal) return;
     const callee = path.node.callee;
-    if (t.isIdentifier(callee) && isCustomHook(callee.name)) {
-      const computed = ensureComputed(path, state);
-      path.node.arguments = path.node.arguments.map((arg) =>
-        computedCall(computed, arg as t.Expression)
+    if (!t.isIdentifier(callee) || !isCustomHook(callee.name)) return;
+
+    // Spread arguments are rejected: `f(...arr)` snapshots the argument list
+    // at the call site, so the hook's params would be fixed at call time and
+    // lose reactivity to the source signal (length changes in particular can
+    // never reach the hook). There is no spread shape that preserves the
+    // signal contract — pass the array signal as a single argument instead.
+    const spread = path.node.arguments.find((arg) => t.isSpreadElement(arg));
+    if (spread) {
+      throw path.buildCodeFrameError(
+        `signal-compiler: spread arguments are not supported in custom hook calls ` +
+          `(\`${callee.name}(...\`). Spreading snapshots the argument list at the ` +
+          `call site and breaks the signal contract — the hook would not react ` +
+          `to changes of the spread signal. Pass the array signal as a single ` +
+          `argument instead, e.g. \`${callee.name}($params)\`.`
       );
     }
+
+    const computed = ensureComputed(path, state);
+    path.node.arguments = path.node.arguments.map((arg) =>
+      computedCall(computed, arg as t.Expression)
+    );
   };
 
   return {

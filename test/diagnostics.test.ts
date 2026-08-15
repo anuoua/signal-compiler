@@ -49,3 +49,21 @@ it("diagnostics: can be disabled via config", () => {
   const w = capture("let $a = 1;\nconst b = $a;", { diagnostics: false });
   expect(w).toBe("");
 });
+
+it("custom hook: spread argument is a compile error", () => {
+  expect(() => compile("const $qs = $useQuery(...$params);")).toThrow(
+    "spread arguments are not supported in custom hook calls"
+  );
+});
+
+it("custom hook: spread error mentions the suggested fix", () => {
+  expect(() => compile("$useF(...$params);")).toThrow(
+    "Pass the array signal as a single argument instead"
+  );
+});
+
+it("custom hook: spread error respects customHookSignal: false", () => {
+  const code = compile("$useF(...$params);", { customHookSignal: false });
+  // no error, and the read visitor still rewrites the signal identifier
+  expect(code).toBe("$useF(...$params.value);");
+});

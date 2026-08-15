@@ -197,6 +197,15 @@ console.log($name.value);
 
 > Hook 体内**所有** `return`（含 `if` / `for` / `try` 等嵌套块中的）都会被包裹；属于内部嵌套函数的 `return` 不会。
 
+**展开参数不被支持**：`$useQuery(...$params)` 会在编译期直接报错。原因是展开语法要求调用时枚举数组——参数列表在那一刻被固化，`$params` 后续的变化（尤其是长度变化）永远无法到达 hook，信号契约被破坏，任何展开写法都无法保留响应性。编译器给出的提示是改为传数组信号本身：
+
+```javascript
+const $qs = $useQuery(...$params);
+// ⚠ 编译报错：spread arguments are not supported in custom hook calls
+// 改为：
+const $qs = $useQuery($params); // hook 内部通过 $params.value[i] / .length 响应式消费
+```
+
 ### 7. 组件函数
 
 函数名首字母大写（符合 React 组件约定）且参数含 `$` 前缀时，会触发参数解构转换。
