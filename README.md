@@ -197,21 +197,24 @@ console.log($name.value);
 
 > Hook 体内**所有** `return`（含 `if` / `for` / `try` 等嵌套块中的）都会被包裹；属于内部嵌套函数的 `return` 不会。
 
-**展开参数不被支持**：`$useQuery(...$params)` 会在编译期直接报错。原因是展开语法要求调用时枚举数组——参数列表在那一刻被固化，`$params` 后续的变化（尤其是长度变化）永远无法到达 hook，信号契约被破坏，任何展开写法都无法保留响应性。编译器给出的提示是改为传数组信号本身：
+**展开参数不被支持（编译器的限制）**：自定义 Hook（`$use*`）、组件、`@signal-component` 标注的函数，**调用处展开传入**（`$useQuery(...$params)`）或**声明处使用 rest 参数**（`(...args)`、`(...$args)`）都会编译报错——这三类函数的参数必须是**固定的、命名的 `$` 信号**，展开/rest 会固化或动态化参数列表，破坏信号契约：
 
 ```javascript
-const $qs = $useQuery(...$params);
-// ⚠ 编译报错：spread arguments are not supported in custom hook calls
-// 改为：
-const $qs = $useQuery($params); // hook 内部通过 $params.value[i] / .length 响应式消费
+const $qs = $useQuery(...$params); // ⚠ 报错：spread arguments are not supported
+const $useQuery = (...args) => ...; // ⚠ 报错：rest parameter "args" is not supported
+// 改为：数组信号参数
+const $useQuery = ($params) => $params.value.map(a => a.value);
+const $qs = $useQuery($params);
 ```
+
+> 例外：解构 pattern 内的 rest（`({ a: $a, ...$rest })`）是**对象剩余属性**，不是参数集合，会被正常转换为 `$rest` computed，不受此限制。
 
 ### 7. 组件函数
 
-函数名首字母大写（符合 React 组件约定）且参数含 `$` 前缀时，会触发参数解构转换。
+函数名首字母大写（符合 React 组件约定）即视为组件。组件的**每一个参数都必须是 `$` 信号**（自定义 Hook、组件、`@signal-component` 标注函数的统一契约）——标识符参数不带 `$`（`(props)`）或解构别名不带 `$`（`({ a: b })`）会在编译期报错。
 
-- **标识符参数**（如 `($props)`）：不解构、不改写。若框架传入的是信号对象，函数体内对 `$props` 的引用会照常追加 `.value`。
-- **解构参数**：会被替换为临时变量，每个 `$` 前缀的解构目标转成 `computed`：
+- **标识符参数**（如 `($props)`）：不解构、不改写。框架传入的是信号对象，函数体内对 `$props` 的引用会照常追加 `.value`。
+- **解构参数**：会被替换为临时变量，每个 `$` 前缀的解构目标转成 `computed`（含默认值与 `...$rest`）：
 
 ```javascript
 const App = ({ msg: $msg = "hello" }) => {
@@ -297,7 +300,7 @@ const { msg: $msg } = $useMsg($hello2);
 
 ## 诊断
 
-开启 `diagnostics`（默认开启）后，编译器会对两类**原本会静默失效**的错误打印带代码位置的警告（不会中断编译）：
+开启 `diagnostics`（默认开启）后，编译器会对三类**原本会静默失效**的错误打印带代码位置的警告（不会中断编译）：
 
 1. **响应链断裂**——信号被赋给非 `$` 前缀的变量：
    ```javascript
@@ -308,6 +311,11 @@ const { msg: $msg } = $useMsg($hello2);
    ```javascript
    let $a;              // ⚠ "$a" has a $ prefix but no initializer, so it will not become a signal.
    function $foo() {}   // ⚠ function "$foo" starts with $ but is neither a custom hook ($use*) nor a component.
+   ```
+3. **解构快照断裂**——从信号源解构出非 `$` 前缀的普通别名，该别名会成为声明时刻的一次性快照：
+   ```javascript
+   const { a: $a, hello } = $some;  // ⚠ "hello" is destructured from signal "$some" without a $ prefix — the reactive chain breaks here.
+   // 需要响应时改为：const { a: $a, hello: $hello } = $some;
    ```
 
 警告带文件位置与代码高亮，便于排查；可通过 `diagnostics: false` 关闭。

@@ -19,11 +19,6 @@ const Comp = () => ({
       const $id = _computed(() => __$1.value["id"]);
       return $id.value;
     };
-  },
-  get Noop() {
-    return /* @signal-component */({
-      id
-    }) => id;
   }
 });
 // 优先级：$use* Hook > 组件 > 标记 —— Hook 带标记仍是 Hook（返回值包 computed）

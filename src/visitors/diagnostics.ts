@@ -2,13 +2,13 @@ import * as t from "@babel/types";
 import type { NodePath, PluginPass } from "@babel/core";
 import type { Ctx } from "../context";
 import { isCustomHook, isSignal } from "../utils/is";
+import { warn } from "../utils/warn";
 
 type State = PluginPass;
 
 /**
  * Diagnostics. These never alter the output — they only emit code-frame
- * warnings to surface two classes of mistakes that would otherwise fail
- * silently:
+ * warnings to surface mistakes that would otherwise fail silently:
  *
  *  - a broken reactive chain: a signal assigned to a non-`$` variable;
  *  - a naming-contract violation: a `$`-prefixed declaration that cannot
@@ -18,13 +18,6 @@ type State = PluginPass;
 export const createDiagnosticsVisitor = (ctx: Ctx) => {
   const { config } = ctx;
   if (!config.diagnostics) return {};
-
-  const warn = (path: NodePath, message: string) => {
-    const frame = path.buildCodeFrameError(message);
-    const file = (path.hub as any)?.file;
-    if (file && typeof file.warn === "function") file.warn(frame);
-    else console.warn(frame.message);
-  };
 
   const BROKEN_CHAIN = (signal: string, target: string) =>
     `signal-compiler: "${signal}" is a signal but is assigned to non-signal "${target}" — the reactive chain breaks here.`;

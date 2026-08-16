@@ -246,3 +246,48 @@ export const rewriteAssignmentPattern = (
     });
   }
 };
+
+/**
+ * Collect every identifier a pattern binds when destructured — object property
+ * values (`{ a: $a }` → `$a`), array elements (`[$a]` → `$a`), defaults
+ * (`{ a: $a = 1 }` → `$a`), rest (`{ ...$rest }` → `$rest`) and nested
+ * patterns, recursively. Used to enforce the "every param is a $ signal"
+ * contract on hooks/components/marked functions.
+ */
+export const collectPatternBindings = (
+  pattern: t.ObjectPattern | t.ArrayPattern
+): t.Identifier[] => {
+  const out: t.Identifier[] = [];
+  const visitPattern = (p: t.ObjectPattern | t.ArrayPattern) => {
+    if (t.isObjectPattern(p)) {
+      for (const prop of p.properties) {
+        if (t.isRestElement(prop)) {
+          const arg = prop.argument;
+          if (t.isIdentifier(arg)) out.push(arg);
+          else if (t.isObjectPattern(arg) || t.isArrayPattern(arg)) visitPattern(arg);
+        } else if (t.isObjectProperty(prop)) {
+          const v = prop.value;
+          if (t.isIdentifier(v)) out.push(v);
+          else if (t.isAssignmentPattern(v)) {
+            if (t.isIdentifier(v.left)) out.push(v.left);
+            else if (t.isObjectPattern(v.left) || t.isArrayPattern(v.left)) visitPattern(v.left);
+          } else if (t.isObjectPattern(v) || t.isArrayPattern(v)) visitPattern(v);
+        }
+      }
+    } else {
+      for (const el of p.elements) {
+        if (!el) continue;
+        if (t.isIdentifier(el)) out.push(el);
+        else if (t.isAssignmentPattern(el)) {
+          if (t.isIdentifier(el.left)) out.push(el.left);
+          else if (t.isObjectPattern(el.left) || t.isArrayPattern(el.left)) visitPattern(el.left);
+        } else if (t.isRestElement(el)) {
+          if (t.isIdentifier(el.argument)) out.push(el.argument);
+          else if (t.isObjectPattern(el.argument) || t.isArrayPattern(el.argument)) visitPattern(el.argument);
+        } else if (t.isObjectPattern(el) || t.isArrayPattern(el)) visitPattern(el);
+      }
+    }
+  };
+  visitPattern(pattern);
+  return out;
+};

@@ -8,9 +8,6 @@ const Comp = () => ({
   get Row() {
     return /* @signal-component */ ({ id: $id }) => $id;
   },
-  get Noop() {
-    return /* @signal-component */ ({ id }) => id;
-  },
 });
 // 优先级：$use* Hook > 组件 > 标记 —— Hook 带标记仍是 Hook（返回值包 computed）
 const $useFoo = /* @signal-component */ ({ x: $x }) => $x + 1;

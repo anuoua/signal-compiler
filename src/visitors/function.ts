@@ -1,9 +1,10 @@
 import * as t from "@babel/types";
 import type { NodePath, PluginPass, Visitor } from "@babel/core";
 import type { Ctx } from "../context";
-import { isCustomHook, isComponentFunction } from "../utils/is";
+import { isCustomHook, isComponentFunction, isSignal } from "../utils/is";
 import { computedCall, valueOf } from "../utils/build";
 import { hasSignalComponentMarker } from "../utils/marker";
+import { collectPatternBindings } from "../utils/pattern";
 
 type State = PluginPass;
 // Every function shape shares `params`/`body`; FunctionDeclaration is used as
@@ -83,6 +84,7 @@ export const createFunctionVisitor = (ctx: Ctx) => {
 
   const visitFunction = (path: NodePath, state: State) => {
     const name = getFunctionName(path);
+    const fn = path.node as FnNode;
 
     const isHook = !!name && isCustomHook(name);
     const isComponent = !!name && isComponentFunction(name);
@@ -92,6 +94,59 @@ export const createFunctionVisitor = (ctx: Ctx) => {
       config.markerSignalComponent && hasSignalComponentMarker(path.node);
 
     if (!isHook && !isComponent && !isMarkedComponent) return;
+
+    // REST parameters are rejected outright: the param list of a hook /
+    // component / marked function must be fixed and made of named $ signals,
+    // while a rest param collects a dynamic, unnamed list — whether the name
+    // carries a $ prefix or not, it can never be a signal. Only the
+    // compiler-recognized shapes (hook / component / marked inline component)
+    // are checked — plain functions are left alone. Note: this is the
+    // function-level rest (`(...args) => …`), NOT the rest inside a
+    // destructuring pattern (`{ a: $a, ...$rest }`), which the pattern
+    // compiler turns into a proper computed.
+    if (config.patternSignalDeclaration) {
+      const rest = fn.params.find((p) => t.isRestElement(p));
+      if (rest) {
+        const restArg = (rest as t.RestElement).argument;
+        const restName = t.isIdentifier(restArg) ? `"${restArg.name}" ` : "";
+        throw path.buildCodeFrameError(
+          `signal-compiler: rest parameter ${restName}is not supported in ` +
+            `custom hooks, components and @signal-component-marked functions — ` +
+            `every parameter must be a named $ signal, and a rest parameter ` +
+            `collects a dynamic list instead. Pass the array signal as a ` +
+            `single parameter, e.g. $useQuery($params).`
+        );
+      }
+
+      // Every parameter (and destructuring alias) of a hook / component /
+      // marked function must be a $ signal. The call site wraps each argument
+      // in computed, and the body reads params as `.value` — a non-$ param
+      // would silently receive a signal object but read it as a plain value.
+      const badBinding = fn.params
+        .flatMap((param) => {
+          if (t.isIdentifier(param)) return [param];
+          if (t.isAssignmentPattern(param)) {
+            const left = param.left;
+            if (t.isIdentifier(left)) return [left];
+            if (t.isObjectPattern(left) || t.isArrayPattern(left))
+              return collectPatternBindings(left);
+            return [];
+          }
+          if (t.isObjectPattern(param) || t.isArrayPattern(param))
+            return collectPatternBindings(param);
+          return []; // RestElement handled above
+        })
+        .find((b) => !isSignal(b.name));
+      if (badBinding) {
+        throw path.buildCodeFrameError(
+          `signal-compiler: parameter "${badBinding.name}" is not a signal — ` +
+            `every parameter (and destructuring alias) of a custom hook, ` +
+            `component or @signal-component-marked function must carry the $ ` +
+            `prefix. Rename it to "$${badBinding.name}" or destructure with a ` +
+            `$ alias, e.g. ({ msg: $msg }).`
+        );
+      }
+    }
 
     if (config.patternSignalDeclaration) processParams(path);
     if (isHook && config.customHookSignal) processReturns(path, state);

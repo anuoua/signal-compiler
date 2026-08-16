@@ -197,12 +197,24 @@ console.log($name.value);
 
 > **Every** `return` in the Hook body (including those nested in `if` / `for` / `try` blocks) is wrapped; returns belonging to inner nested functions are not.
 
+**Spread arguments are not supported (compiler limitation)**: for custom Hooks (`$use*`), components and `@signal-component`-marked functions, **spreading at the call site** (`$useQuery(...$params)`) or **using a rest parameter in the signature** (`(...args)`, `(...$args)`) is a compile error — the parameters of these three kinds of functions must be a **fixed list of named `$` signals**; spread/rest freezes or dynamizes the parameter list and breaks the signal contract:
+
+```javascript
+const $qs = $useQuery(...$params); // ⚠ error: spread arguments are not supported
+const $useQuery = (...args) => ...; // ⚠ error: rest parameter "args" is not supported
+// instead: pass the array signal
+const $useQuery = ($params) => $params.value.map(a => a.value);
+const $qs = $useQuery($params);
+```
+
+> Exception: rest inside a destructuring pattern (`({ a: $a, ...$rest })`) is an **object rest property**, not a parameter collection — it is compiled to a `$rest` computed as usual and is not affected.
+
 ### 7. Component functions
 
-A function whose name starts with an uppercase letter (the React component convention) and whose parameters include a `$`-prefixed binding triggers parameter-destructuring rewriting.
+A function whose name starts with an uppercase letter (the React component convention) is treated as a component. **Every parameter of a component must be a `$` signal** (a unified contract for custom Hooks, components and `@signal-component`-marked functions) — an identifier parameter without `$` (`(props)`) or a destructuring alias without `$` (`({ a: b })`) is a compile error.
 
-- **Identifier parameter** (e.g. `($props)`): not destructured, not rewritten. If the framework passes a signal object, references to `$props` in the body still get `.value` appended as usual.
-- **Destructured parameter**: replaced by a temporary variable; each `$`-prefixed target becomes a `computed`:
+- **Identifier parameter** (e.g. `($props)`): not destructured, not rewritten. The framework passes a signal object, and references to `$props` in the body get `.value` appended as usual.
+- **Destructured parameter**: replaced by a temporary variable; every `$`-prefixed target becomes a `computed` (including defaults and `...$rest`):
 
 ```javascript
 const App = ({ msg: $msg = "hello" }) => {
@@ -288,7 +300,7 @@ Chain: `$hello2 → $useMsg($hello2) → { msg: $msg }` — every step keeps the
 
 ## Diagnostics
 
-With `diagnostics` on (the default), the compiler emits code-framed warnings — without failing the build — for two classes of mistakes that would otherwise fail silently:
+With `diagnostics` on (the default), the compiler emits code-framed warnings — without failing the build — for three classes of mistakes that would otherwise fail silently:
 
 1. **Broken reactive chain** — a signal assigned to a non-`$` variable:
    ```javascript
@@ -299,6 +311,11 @@ With `diagnostics` on (the default), the compiler emits code-framed warnings —
    ```javascript
    let $a;              // ⚠ "$a" has a $ prefix but no initializer, so it will not become a signal.
    function $foo() {}   // ⚠ function "$foo" starts with $ but is neither a custom hook ($use*) nor a component.
+   ```
+3. **Destructuring snapshot break** — a plain alias destructured from a signal source becomes a one-time snapshot at declaration time:
+   ```javascript
+   const { a: $a, hello } = $some;  // ⚠ "hello" is destructured from signal "$some" without a $ prefix — the reactive chain breaks here.
+   // rename to keep reactivity: const { a: $a, hello: $hello } = $some;
    ```
 
 Warnings carry file position and source highlight for easy triage; turn them off with `diagnostics: false`.

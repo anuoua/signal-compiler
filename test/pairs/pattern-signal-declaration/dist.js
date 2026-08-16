@@ -23,12 +23,12 @@ const Pagination = $props => {
   const $size = _computed(() => __$2.value["size"] ?? 'md');
 };
 const Input = __$3 => {
-  const rest = (() => {
+  const $rest = _computed(() => (() => {
     const {
       size,
       ...___1
     } = __$3.value;
     return ___1;
-  })();
+  })());
   const $size = _computed(() => __$3.value["size"] ?? 'md');
 };
