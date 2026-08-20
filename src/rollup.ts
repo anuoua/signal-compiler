@@ -24,6 +24,8 @@ export function signalCompilerRollup(options: Options = {}): Plugin {
       let result: babelCore.BabelFileResult | null;
       try {
         result = babelCore.transform(code, {
+          sourceMaps: sourcemap,
+          filename: id,
           plugins: [
             ["@babel/plugin-syntax-jsx"],
             [signalCompiler, { ...(options.config as object) }],
