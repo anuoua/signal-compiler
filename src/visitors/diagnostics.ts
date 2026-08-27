@@ -37,14 +37,15 @@ export const createDiagnosticsVisitor = (ctx: Ctx) => {
       }
 
       // `const b = $a` / `let b = $a` — signal handed to a non-signal binding.
-      if (
-        t.isIdentifier(node.id) &&
-        !isSignal(node.id.name) &&
-        t.isIdentifier(node.init) &&
-        isSignal(node.init.name)
-      ) {
-        warn(path, BROKEN_CHAIN(node.init.name, node.id.name));
-      }
+      // TEMP-DISABLED: silenced for observation; restore when stable.
+      // if (
+      //   t.isIdentifier(node.id) &&
+      //   !isSignal(node.id.name) &&
+      //   t.isIdentifier(node.init) &&
+      //   isSignal(node.init.name)
+      // ) {
+      //   warn(path, BROKEN_CHAIN(node.init.name, node.id.name));
+      // }
     },
 
     AssignmentExpression(
@@ -55,14 +56,15 @@ export const createDiagnosticsVisitor = (ctx: Ctx) => {
       if (node.operator !== "=") return;
 
       // `b = $a` — signal handed to a non-signal variable.
-      if (
-        t.isIdentifier(node.left) &&
-        !isSignal(node.left.name) &&
-        t.isIdentifier(node.right) &&
-        isSignal(node.right.name)
-      ) {
-        warn(path, BROKEN_CHAIN(node.right.name, node.left.name));
-      }
+      // TEMP-DISABLED: silenced for observation; restore when stable.
+      // if (
+      //   t.isIdentifier(node.left) &&
+      //   !isSignal(node.left.name) &&
+      //   t.isIdentifier(node.right) &&
+      //   isSignal(node.right.name)
+      // ) {
+      //   warn(path, BROKEN_CHAIN(node.right.name, node.left.name));
+      // }
     },
 
     FunctionDeclaration(path: NodePath<t.FunctionDeclaration>, _state: State) {

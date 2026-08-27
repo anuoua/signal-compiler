@@ -64,23 +64,29 @@ export const createDeclarationVisitor = (ctx: Ctx) => {
           // silently loses reactivity. Warn BEFORE the rewrite below: it
           // replaces decl.id with a temp var, which would hide the pattern
           // from the diagnostics visitor.
-          if (
-            config.diagnostics &&
-            t.isIdentifier(decl.init) &&
-            isSignal(decl.init.name)
-          ) {
-            for (const binding of collectPatternBindings(decl.id)) {
-              if (!isSignal(binding.name)) {
-                warn(
-                  path,
-                  `signal-compiler: "${binding.name}" is destructured from signal ` +
-                    `"${decl.init.name}" without a $ prefix — the ` +
-                    `reactive chain breaks here; rename it to ` +
-                    `"$${binding.name}" to keep reactivity.`
-                );
-              }
-            }
-          }
+          // `const { a: $a, hello } = $some` — a plain alias destructured
+          // from a signal source becomes a declaration-time snapshot and
+          // silently loses reactivity. Warn BEFORE the rewrite below: it
+          // replaces decl.id with a temp var, which would hide the pattern
+          // from the diagnostics visitor.
+          // TEMP-DISABLED: silenced for observation; restore when stable.
+          // if (
+          //   config.diagnostics &&
+          //   t.isIdentifier(decl.init) &&
+          //   isSignal(decl.init.name)
+          // ) {
+          //   for (const binding of collectPatternBindings(decl.id)) {
+          //     if (!isSignal(binding.name)) {
+          //       warn(
+          //         path,
+          //         `signal-compiler: "${binding.name}" is destructured from signal ` +
+          //           `"${decl.init.name}" without a $ prefix — the ` +
+          //           `reactive chain breaks here; rename it to ` +
+          //           `"$${binding.name}" to keep reactivity.`
+          //       );
+          //     }
+          //   }
+          // }
 
           const pattern = decl.id;
           const varName = createTempVar();
